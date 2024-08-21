@@ -1,8 +1,21 @@
 import { useEffect } from "react";
 
-function Graph({equations, setEquations}: {equations: string[], setEquations: any}) {
+import { greet, evaluate_string } from "./pkg/wasm_graph_calc.js";
+
+function Graph({equations, setEquations, wasmLoaded}: {equations: string[], setEquations: any, wasmLoaded: boolean}) {
 
 	useEffect(() => {
+
+		if (!wasmLoaded) {
+			console.log("wasm not loaded");
+			return;
+		} else {
+			//console.log("wasm loaded");
+			//greet("wasm loaded");
+			//alert(evaluate_string("5+2*3"));
+			//alert(evaluate_string("(5+2)*3"));
+		}
+
 		const c = document.getElementById("graph")! as HTMLCanvasElement;
 		const ctx = c.getContext("2d")!;
 
@@ -23,7 +36,7 @@ function Graph({equations, setEquations}: {equations: string[], setEquations: an
 		ctx.stroke();
 
 
-	}, [equations]);
+	}, [equations, wasmLoaded]);
 
 	// useEffect(() => {
 	// 	console.log(equations);
