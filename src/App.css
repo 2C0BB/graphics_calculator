@@ -107,11 +107,16 @@
 	right: 0;
 	width: 80%;
 
-	background-color: blue;
+	background-color: white;
 }
 
 .new_eq {
 	font-size: 1.2em;
 	color: black;
 	background-color: white;	
+}
+
+canvas {
+	width: 100%;
+	height: 100%;
 }
