@@ -19,91 +19,213 @@ pub enum LexerTokenType {
     Sub,
     Div,
     Mul,
+    Func(Vec<Vec<LexerToken>>, String),
     Var(char),
     Num(f32)
 }
 
 fn value_operator(input: &LexerTokenType) -> u32 {
     match input {
-        LexerTokenType::Mul => 0,
-        LexerTokenType::Div => 0,
-        LexerTokenType::Add => 1,
-        LexerTokenType::Sub => 1,
+        LexerTokenType::Func(..) => 0,
+        LexerTokenType::Mul => 1,
+        LexerTokenType::Div => 1,
+        LexerTokenType::Add => 2,
+        LexerTokenType::Sub => 2,
 
         LexerTokenType::Num(_) | LexerTokenType::Var(_) => panic!()
     }
 }
 
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LexerToken {
     token_type: LexerTokenType,
     bracket_depth: u32
 }
 
-struct LexerBuffer {
-	chars: Vec<char>,
-}
+const FUNCTIONS: [&str; 1] = ["ln"];
 
-impl LexerBuffer {
-	fn new() -> Self {
-		LexerBuffer { chars: Vec::new() }
-	}
+fn string_to_token(s: &str) -> Option<LexerTokenType> {
 
-    fn is_empty(&self) -> bool {
-        self.chars.is_empty()
-    }
+    dbg!(s);
 
-	fn convert_string(&mut self) -> Option<String> {
+    Some(match s {
+        "+" => LexerTokenType::Add,
+        "-" => LexerTokenType::Sub,
+        "*" => LexerTokenType::Mul,
+        "/" => LexerTokenType::Div,
 
-        if self.chars.is_empty() {
-            return None
+        _ => {
+            return None;
         }
-
-		let out: String = self.chars
-            .iter()
-            .collect();
-
-        self.chars = Vec::new();
-
-        Some(out)
-	}
-
-    fn convert_num(&mut self) -> Option<f32> {
-
-        match self.convert_string() {
-            Some(s) => {
-                Some(s.parse().expect("not a num"))
-            },
-
-            None => {
-                None
-            }
-        }
-    }
+    })
 }
 
 pub fn lex(input: &str) -> Vec<LexerToken> {
+
+    println!("input is {}", input);
+
     let mut iter = input.chars().peekable();
+
+    let mut bracket_depth: u32 = 0;
 
     let mut out: Vec<LexerToken> = Vec::new();
 
-    while let Some(c) = iter.next() {
-        if c == ' ' {
+    while let Some(character) = iter.next() {
+        if character == ' ' {
             continue;
         }
 
-        if c.is_numeric() {
-            let mut num_buf: Vec<char> = vec![c];
+        if character == '(' {
+            bracket_depth += 1;
+            continue;
+        }
+
+        if character == ')' {
+            bracket_depth -= 1;
+            continue;
+        }
+
+
+        if character.is_numeric() {
+            let mut num_buf: Vec<char> = vec![character];
             
-            while let Some(x) = iter.peek() {
-                if x.is_numeric() {
-                    num_buf.push(*x);
-                } else {
+            while let Some(c) = iter.peek() {
+                if !c.is_numeric() {
                     break;
                 }
+
+                num_buf.push(*c);
+                iter.next();
             }
+
+            let number: f32 = num_buf
+                .iter()
+                .collect::<String>()
+                .parse()
+                .unwrap();
+
+            out.push(LexerToken {
+                token_type: LexerTokenType::Num(number),
+                bracket_depth
+            });
+
+            continue;
         }
+
+        /*
+        if !character.is_alphabetic() {
+            dbg!(out);
+            panic!("not alphabetic");
+        }
+        */
+
+        let mut buf: Vec<char> = vec![character];
+
+        // fix this later
+        let buf_as_string: String = buf.iter().collect();
+        if let Some(token_type) = string_to_token(&buf_as_string) {
+            out.push(LexerToken { token_type, bracket_depth });
+            continue;
+        }
+
+        // and rework this
+        while let Some(next_c) = iter.peek() {
+            if *next_c == ' ' {
+                break;
+            }
+
+            buf.push(*next_c);
+            iter.next();
+
+            let buf_as_string: String = buf.iter().collect();
+            if let Some(token_type) = string_to_token(&buf_as_string) {
+
+                out.push(LexerToken { token_type, bracket_depth });
+
+            } else if FUNCTIONS.contains(&buf_as_string.as_str()) {
+
+                // skip all the whitespace before the opening bracket for the function
+                while let Some(&' ') = iter.peek() {
+                    iter.next();
+                }
+
+                if let Some(&'(') = iter.peek() {
+                    iter.next();
+
+                    // this is NOT for operation ordering, this is just to match the actual closing bracket rather than some inner ones
+                    let mut inner_bracket_depth: u32 = 1;
+                    // start at 1 because the opening brace has already been consumed
+
+                    // these are characters inside function braces that will be lexed recursively
+                    let mut func_chars_sets: Vec<Vec<char>> = vec![Vec::new()];
+                    let mut func_chars_sets_ptr: usize = 0;
+
+                    let mut closing_found: bool = false;
+
+                    while let Some(func_next_char) = iter.peek() {
+                        if *func_next_char == ')' {
+
+                            inner_bracket_depth -= 1;
+
+                            if inner_bracket_depth == 0 {
+                                closing_found = true;
+
+                                iter.next();
+                                break;
+                            }
+                        }
+
+                        if *func_next_char == '(' {
+                            inner_bracket_depth += 1;
+                            // dont consume because this is still to be added to the function inp
+                        }
+
+                        if *func_next_char == ',' {
+                            func_chars_sets.push(Vec::new());
+                            func_chars_sets_ptr += 1;
+                            iter.next();
+                            continue;
+                        }
+
+                        func_chars_sets[func_chars_sets_ptr].push(*func_next_char);
+                        iter.next();
+                    }
+
+                    if !closing_found {
+                        panic!("implement real error, but there is no closing brace for this function");
+                    }
+
+                    let lexed_func_args: Vec<Vec<LexerToken>> = func_chars_sets.into_iter()
+                        .map(|set| set.iter().collect::<String>())
+                        .map(|set_string| lex(&set_string))
+                        .collect();
+
+                    out.push(
+                        LexerToken {
+                            token_type: LexerTokenType::Func(lexed_func_args, buf_as_string),
+                            bracket_depth
+                        }
+                    );
+
+                    buf = Vec::new();
+
+                    break;
+
+                } else {
+                    // its actually variables????8
+                    break;
+                    // this will be done by outside extend func as buf is not cleared
+                }
+            }
+
+        }
+
+        out.extend(buf.into_iter().map(|x| LexerToken {
+            token_type: LexerTokenType::Var(x),
+            bracket_depth
+        }));
+
     }
 
     out
@@ -131,30 +253,6 @@ impl OperatorOrdering {
         self.position > other.position
     }
 }
-
-/*impl std::cmp::PartialOrd for OperatorOrdering {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let ordering1 = self.bracket_depth.cmp(&other.bracket_depth);
-
-        match ordering1 {
-            std::cmp::Ordering::Equal => {},
-            _ => {
-                return Some(ordering1);
-            }
-        }
-
-        let ordering2 = self.operator_val.cmp(&other.operator_val);
-
-        match ordering2 {
-            std::cmp::Ordering::Equal => {},
-            _ => {
-                return Some(ordering2);
-            }
-        }
-
-        Some(self.position.cmp(&other.position))
-    } 
-}*/
 
 fn find_next_op(items: &[LexerToken]) -> Option<usize> {
 
@@ -202,6 +300,7 @@ pub type SharedVars = Rc<RefCell<HashMap<char, f32>>>;
 #[derive(Debug)]
 pub struct TreeNode {
     token_type: LexerTokenType,
+    function_args: Vec<TreeNode>,
 
     left: TreeLink,
     right: TreeLink
@@ -214,6 +313,18 @@ impl TreeNode {
         match next_op_pos {
             Some(pos) => {
                 let token_type = items[pos].token_type.clone();
+
+                if let LexerTokenType::Func(vars, _name) = &token_type {
+                    assert_eq!(items.len(), 1);
+
+                    return Ok(TreeNode {
+                        token_type: token_type.clone(),
+                        function_args: vars.iter().map(|x| TreeNode::new_from_tokens(x).unwrap()).collect(),
+
+                        left: None,
+                        right: None,
+                    });
+                }
                 
                 let left_items = &items[0..pos];
                 let left_node = TreeNode::new_from_tokens(left_items)?;
@@ -224,6 +335,7 @@ impl TreeNode {
 
                 Ok(TreeNode { 
                     token_type,
+                    function_args: Vec::new(),
                     left: Some(Box::new(left_node)), 
                     right: Some(Box::new(right_node)), 
                 })
@@ -237,6 +349,7 @@ impl TreeNode {
 
                 Ok(TreeNode {
                     token_type: items[0].token_type.clone(),
+                    function_args: Vec::new(),
                     left: None,
                     right: None,
                 })
@@ -264,16 +377,28 @@ impl TreeNode {
             return var_value;
         }
 
+        if let LexerTokenType::Func(_, name) = &self.token_type {
+            if name == "ln" {
+                assert_eq!(self.function_args.len(), 1);
+
+                return self.function_args[0].evaluate(vars.clone()).ln();
+            }
+
+            unimplemented!()
+        }
+
+        dbg!(self);
+
         let left_val = self.left.as_ref().unwrap().evaluate(vars.clone());
         let right_val = self.right.as_ref().unwrap().evaluate(vars.clone());
 
-        match self.token_type {
+        match &self.token_type {
             LexerTokenType::Add => left_val + right_val,
             LexerTokenType::Sub => left_val - right_val,
             LexerTokenType::Mul => left_val * right_val,
             LexerTokenType::Div => left_val / right_val,
 
-            LexerTokenType::Num(_) | LexerTokenType::Var(_) => unreachable!()
+            LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::Func(..) => unreachable!()
         }
     }
 
