@@ -1,9 +1,15 @@
+import { evaluate_string } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
+
 function EquationInput({
 		equations,
 		setEquations,
+
+		wasmLoaded
 	}: {
 		equations: any, 
 		setEquations: any,
+
+		wasmLoaded: boolean
 	}) {
 
 	function handleEquationChange(
@@ -30,6 +36,14 @@ function EquationInput({
 	return (
 		<>
 			{equations.map((eq: string, idx: number) => {
+				let result;
+				
+				if (wasmLoaded) {
+					result = evaluate_string(eq);
+				} else {
+					result = undefined;
+				}
+
 				return (
 
 					<div className="equation" key={idx}>
@@ -40,6 +54,12 @@ function EquationInput({
 						/>
 
 						<button onClick={() => removeEquation(idx)}>X</button>
+
+						{result != undefined &&
+						<div className="result">
+							<p>= {result}</p>
+						</div>
+						}
 					</div>
 				);
 			})}

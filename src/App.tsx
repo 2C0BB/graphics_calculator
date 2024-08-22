@@ -6,7 +6,7 @@ import './App.css'
 import EquationInput from './EquationInput'
 import Graph from './Graph';
 
-import init, { greet } from "./pkg/wasm_graph_calc.js"
+import init, { greet } from "./wasm-graph-calc/pkg/wasm_graph_calc.js"
 
 function App() {
 	const [equations, setEquations] = useState([
@@ -28,6 +28,8 @@ function App() {
 			<EquationInput 
 				equations={equations}
 				setEquations={setEquations}
+
+				wasmLoaded={wasmLoaded}
 			/>
 		</div>
 		<div className="split right">

@@ -49,12 +49,13 @@
 
 .equation {
 	width: 100%;
-	display: flex;
-	flex-direction: row;
+	/* display: flex;
+	flex-direction: row; */
 	/*align-items: center;*/
 
 	min-height: 10vh;
 	margin-bottom: 1vh;
+	position: relative;
 }
 
 .equation * {
@@ -62,7 +63,13 @@
 }
 
 .equation input{
+
+	position: absolute;
+
+	z-index: 0;
+
 	height: 100%;
+	width: 100%;
 	border: none;
 
 	font-size: large;
@@ -71,17 +78,44 @@
 	background-color: white;
 
 	left: 0;
-	width: 80%;
+	/* width: 80%; */
 
 	padding-left: 1em;
 }
 
 .equation button{
+
+	position: absolute;
+
+	color: black;
+	background-color: gray;
+
+	top: 0;
 	right: 0;
+	z-index: 1;
 	width: 20%;
-	height: 100%;
+	/* height: 100%; */
+	/* height: 50%; */
+	height: 2em;
 	border: none;
 	border-radius: 0;	
+}
+
+.equation .result {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	z-index: 1;
+
+	padding-bottom: 1vh;
+
+	width: 20%;
+	height: 2em;
+}
+
+.equation .result p {
+	text-align: right;
+	color: black;
 }
 
 .split {
