@@ -1,3 +1,6 @@
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::hash_map::HashMap;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -9,10 +12,6 @@ extern {
 pub fn greet(name: &str) {
     alert(&format!("Hello, {}!", name));
 }
-
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::hash_map::HashMap;
 
 #[derive(Clone, Debug)]
 pub enum LexerTokenType {
@@ -42,113 +41,72 @@ pub struct LexerToken {
     bracket_depth: u32
 }
 
+struct LexerBuffer {
+	chars: Vec<char>,
+}
+
+impl LexerBuffer {
+	fn new() -> Self {
+		LexerBuffer { chars: Vec::new() }
+	}
+
+    fn is_empty(&self) -> bool {
+        self.chars.is_empty()
+    }
+
+	fn convert_string(&mut self) -> Option<String> {
+
+        if self.chars.is_empty() {
+            return None
+        }
+
+		let out: String = self.chars
+            .iter()
+            .collect();
+
+        self.chars = Vec::new();
+
+        Some(out)
+	}
+
+    fn convert_num(&mut self) -> Option<f32> {
+
+        match self.convert_string() {
+            Some(s) => {
+                Some(s.parse().expect("not a num"))
+            },
+
+            None => {
+                None
+            }
+        }
+    }
+}
+
 pub fn lex(input: &str) -> Vec<LexerToken> {
+    let mut iter = input.chars().peekable();
+
     let mut out: Vec<LexerToken> = Vec::new();
 
-    let mut num_buf: Vec<char> = Vec::new();
-
-    let mut bracket_depth: u32 = 0;
-
-    for c in input.chars() {
-
+    while let Some(c) = iter.next() {
         if c == ' ' {
-            if !num_buf.is_empty() {
-                let number: f32 = num_buf
-                    .into_iter()
-                    .collect::<String>()
-                    .parse()
-                    .unwrap();
-                out.push(
-                    LexerToken {
-                        token_type: LexerTokenType::Num(number),
-                        bracket_depth
-                    }
-                );
-            }
-
-            num_buf = Vec::new();
-
             continue;
         }
 
         if c.is_numeric() {
-            num_buf.push(c);
-            continue
-        }
-
-        if !num_buf.is_empty() {
-            let number: f32 = num_buf
-                .into_iter()
-                .collect::<String>()
-                .parse()
-                .unwrap();
-            out.push(
-                LexerToken {
-                    token_type: LexerTokenType::Num(number),
-                    bracket_depth
+            let mut num_buf: Vec<char> = vec![c];
+            
+            while let Some(x) = iter.peek() {
+                if x.is_numeric() {
+                    num_buf.push(*x);
+                } else {
+                    break;
                 }
-            );
-            num_buf = Vec::new();
-        }
-
-        if c == '(' {
-            bracket_depth += 1;
-            continue;
-        } else if c == ')' {
-            bracket_depth -= 1;
-            continue;
-        }
-
-        let token_type = match c {
-            '+' => LexerTokenType::Add,
-            '-' => LexerTokenType::Sub,
-            '*' => LexerTokenType::Mul,
-            '/' => LexerTokenType::Div,
-
-            v => LexerTokenType::Var(v)
-        };
-
-        out.push(
-            LexerToken {
-                token_type,
-                bracket_depth
             }
-        );
-    }
-
-    if !num_buf.is_empty() {
-        let number: f32 = num_buf
-            .into_iter()
-            .collect::<String>()
-            .parse()
-            .unwrap();
-        out.push(
-            LexerToken {
-                token_type: LexerTokenType::Num(number),
-                bracket_depth
-            }
-        );
-    }
-
-    // check that there are no neighbouring number
-    //let mut last_is_num: bool = false;
-
-    /*
-    for item in out.iter() {
-        if let LexerTokenType::Num(_) = item.token_type {
-            if last_is_num {
-                panic!()
-            }
-
-            last_is_num = true;
-        } else {
-            last_is_num = false;
         }
     }
-    */
 
     out
-    
 }
 
 #[derive(Debug)]
