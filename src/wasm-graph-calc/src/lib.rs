@@ -61,6 +61,28 @@ fn string_to_token(s: &str) -> Option<LexerTokenType> {
     })
 }
 
+// return the variables, and the function name
+// this will be called when a openin brace is next, but not in buf
+fn find_function(input: &str) -> Option<(Vec<char>, &str)> {
+    if input.is_empty() {
+        return None;
+    }
+
+    for fun in FUNCTIONS {
+        if let Some(pos) = input.find(fun) {
+            let leftover_chars: Vec<char> = input[..pos]
+                .chars()
+                .collect();
+
+            let function_name: &str = &input[pos..];
+
+            return Some((leftover_chars, function_name));
+        }
+    }
+
+    None
+}
+
 pub fn lex(input: &str) -> Vec<LexerToken> {
 
     println!("input is {}", input);
@@ -113,15 +135,7 @@ pub fn lex(input: &str) -> Vec<LexerToken> {
             continue;
         }
 
-        /*
-        if !character.is_alphabetic() {
-            dbg!(out);
-            panic!("not alphabetic");
-        }
-        */
-
         let mut buf: Vec<char> = vec![character];
-
         // fix this later
         let buf_as_string: String = buf.iter().collect();
         if let Some(token_type) = string_to_token(&buf_as_string) {
