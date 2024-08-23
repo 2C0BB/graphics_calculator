@@ -21,7 +21,7 @@ pub enum LexerTokenType {
     Mul,
     Func(Vec<Vec<LexerToken>>, String),
     Var(char),
-    Num(f32)
+    Num(f64)
 }
 
 fn value_operator(input: &LexerTokenType) -> u32 {
@@ -172,7 +172,8 @@ pub fn lex(input: &str) -> Vec<LexerToken> {
                 _ => unreachable!()
             };
 
-            out.push(LexerToken {token_type, bracket_depth})
+            out.push(LexerToken {token_type, bracket_depth});
+            continue;
         }
 
 
@@ -188,7 +189,7 @@ pub fn lex(input: &str) -> Vec<LexerToken> {
                 iter.next();
             }
 
-            let number: f32 = num_buf
+            let number: f64 = num_buf
                 .iter()
                 .collect::<String>()
                 .parse()
@@ -203,7 +204,7 @@ pub fn lex(input: &str) -> Vec<LexerToken> {
         }
 
 
-        let mut buffer: Vec<char> = Vec::new();
+        let mut buffer: Vec<char> = vec![character];
         while let Some(buf_char_next) = iter.peek() {
 
             if *buf_char_next == ' ' {
@@ -245,6 +246,12 @@ pub fn lex(input: &str) -> Vec<LexerToken> {
 
             buffer.push(*buf_char_next);
             iter.next();
+
+            /*
+            if iter.next().is_none() {
+                break;
+            };
+            */
         }
 
         for new_var in buffer.iter() {
@@ -322,7 +329,7 @@ fn find_next_op(items: &[LexerToken]) -> Option<usize> {
 }
 
 type TreeLink = Option<Box<TreeNode>>;
-pub type SharedVars = Rc<RefCell<HashMap<char, f32>>>;
+pub type SharedVars = Rc<RefCell<HashMap<char, f64>>>;
 
 #[derive(Debug)]
 pub struct TreeNode {
@@ -387,7 +394,7 @@ impl TreeNode {
         }
     }
 
-    fn evaluate(&self, vars: SharedVars) -> f32 {
+    fn evaluate(&self, vars: SharedVars) -> f64 {
         if let LexerTokenType::Num(num) = self.token_type {
 
             // num shouldn't have left and right args
@@ -459,7 +466,7 @@ impl ParseTree {
         Ok(ParseTree { inner_tree })
     }
 
-    pub fn evaluate(&self, vars: SharedVars) -> f32 {
+    pub fn evaluate(&self, vars: SharedVars) -> f64 {
         if let Some(tree) = &self.inner_tree {
             tree.evaluate(vars.clone())
         } else {
@@ -469,7 +476,7 @@ impl ParseTree {
 }
 
 #[wasm_bindgen]
-pub fn evaluate_string(input: String) -> Option<f32> {
+pub fn evaluate_string(input: String) -> Option<f64> {
 
     let vars: SharedVars = Rc::new(RefCell::new(HashMap::new()));
 
