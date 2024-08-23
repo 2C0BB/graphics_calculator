@@ -83,6 +83,60 @@ fn find_function(input: &str) -> Option<(Vec<char>, &str)> {
     None
 }
 
+fn generate_function<T>(i: &mut T, function_name: String) -> LexerTokenType
+    where T: Iterator<Item = char>
+{
+
+    println!("STARTED");
+
+    let mut bracket_depth: u32 = 1;
+
+    let mut args_sets: Vec<Vec<char>> = Vec::new();
+    let mut current_set: Vec<char> = Vec::new();
+
+    let mut closing_found: bool = false;
+
+    while let Some(c) = i.next() {
+
+        println!("C: {}", c);
+
+        if c == '(' {
+            bracket_depth += 1;
+        }
+
+        if c == ')' {
+            bracket_depth -= 1;
+
+            if bracket_depth == 0 {
+                closing_found = true;
+                break;
+            }
+        }
+
+        if c == ',' {
+            args_sets.push(current_set);
+            current_set = Vec::new();
+
+            continue;
+        }
+
+        current_set.push(c);
+    }
+
+    args_sets.push(current_set);
+
+    if !closing_found {
+        panic!();
+    }
+
+    let parsed_sets: Vec<Vec<LexerToken>> = args_sets.into_iter()
+        .map(|set| set.iter().collect::<String>())
+        .map(|set_string| {println!("SET: {}", set_string); lex(&set_string)})
+        .collect();
+
+    LexerTokenType::Func(parsed_sets, function_name)
+}
+
 pub fn lex(input: &str) -> Vec<LexerToken> {
 
     println!("input is {}", input);
@@ -106,6 +160,19 @@ pub fn lex(input: &str) -> Vec<LexerToken> {
         if character == ')' {
             bracket_depth -= 1;
             continue;
+        }
+
+        if ['+', '-', '*', '/'].contains(&character) {
+            let token_type: LexerTokenType = match character {
+                '+' => LexerTokenType::Add,
+                '-' => LexerTokenType::Sub,
+                '*' => LexerTokenType::Mul,
+                '/' => LexerTokenType::Div,
+
+                _ => unreachable!()
+            };
+
+            out.push(LexerToken {token_type, bracket_depth})
         }
 
 
@@ -135,111 +202,57 @@ pub fn lex(input: &str) -> Vec<LexerToken> {
             continue;
         }
 
-        let mut buf: Vec<char> = vec![character];
-        // fix this later
-        let buf_as_string: String = buf.iter().collect();
-        if let Some(token_type) = string_to_token(&buf_as_string) {
-            out.push(LexerToken { token_type, bracket_depth });
-            continue;
-        }
 
-        // and rework this
-        while let Some(next_c) = iter.peek() {
-            if *next_c == ' ' {
+        let mut buffer: Vec<char> = Vec::new();
+        while let Some(buf_char_next) = iter.peek() {
+
+            if *buf_char_next == ' ' {
                 break;
             }
 
-            buf.push(*next_c);
-            iter.next();
+            if *buf_char_next == '(' {
 
-            let buf_as_string: String = buf.iter().collect();
-            if let Some(token_type) = string_to_token(&buf_as_string) {
+                let buffer_string: String = buffer.iter().collect();
 
-                out.push(LexerToken { token_type, bracket_depth });
-
-            } else if FUNCTIONS.contains(&buf_as_string.as_str()) {
-
-                // skip all the whitespace before the opening bracket for the function
-                while let Some(&' ') = iter.peek() {
-                    iter.next();
-                }
-
-                if let Some(&'(') = iter.peek() {
+                if let Some((vars, function_name)) = find_function(&buffer_string) {
                     iter.next();
 
-                    // this is NOT for operation ordering, this is just to match the actual closing bracket rather than some inner ones
-                    let mut inner_bracket_depth: u32 = 1;
-                    // start at 1 because the opening brace has already been consumed
-
-                    // these are characters inside function braces that will be lexed recursively
-                    let mut func_chars_sets: Vec<Vec<char>> = vec![Vec::new()];
-                    let mut func_chars_sets_ptr: usize = 0;
-
-                    let mut closing_found: bool = false;
-
-                    while let Some(func_next_char) = iter.peek() {
-                        if *func_next_char == ')' {
-
-                            inner_bracket_depth -= 1;
-
-                            if inner_bracket_depth == 0 {
-                                closing_found = true;
-
-                                iter.next();
-                                break;
-                            }
-                        }
-
-                        if *func_next_char == '(' {
-                            inner_bracket_depth += 1;
-                            // dont consume because this is still to be added to the function inp
-                        }
-
-                        if *func_next_char == ',' {
-                            func_chars_sets.push(Vec::new());
-                            func_chars_sets_ptr += 1;
-                            iter.next();
-                            continue;
-                        }
-
-                        func_chars_sets[func_chars_sets_ptr].push(*func_next_char);
-                        iter.next();
-                    }
-
-                    if !closing_found {
-                        panic!("implement real error, but there is no closing brace for this function");
-                    }
-
-                    let lexed_func_args: Vec<Vec<LexerToken>> = func_chars_sets.into_iter()
-                        .map(|set| set.iter().collect::<String>())
-                        .map(|set_string| lex(&set_string))
-                        .collect();
-
-                    out.push(
-                        LexerToken {
-                            token_type: LexerTokenType::Func(lexed_func_args, buf_as_string),
+                    for v in vars {
+                        out.push(LexerToken {
+                            token_type: LexerTokenType::Var(v),
                             bracket_depth
-                        }
+                        });
+                    }
+
+                    let function_type = generate_function(
+                        &mut iter,
+                        function_name.to_string()
                     );
 
-                    buf = Vec::new();
+                    out.push(LexerToken {
+                        token_type: function_type,
+                        bracket_depth
+                    });
 
+                    buffer = Vec::new();
                     break;
-
-                } else {
-                    // its actually variables????8
-                    break;
-                    // this will be done by outside extend func as buf is not cleared
                 }
             }
 
+            if !buf_char_next.is_alphabetic() {
+                break;
+            }
+
+            buffer.push(*buf_char_next);
+            iter.next();
         }
 
-        out.extend(buf.into_iter().map(|x| LexerToken {
-            token_type: LexerTokenType::Var(x),
-            bracket_depth
-        }));
-
+        for new_var in buffer.iter() {
+            out.push(LexerToken {
+                token_type: LexerTokenType::Var(*new_var),
+                bracket_depth
+            });
+        }
     }
 
     out
@@ -329,6 +342,9 @@ impl TreeNode {
                 let token_type = items[pos].token_type.clone();
 
                 if let LexerTokenType::Func(vars, _name) = &token_type {
+
+                    dbg!(items);
+
                     assert_eq!(items.len(), 1);
 
                     return Ok(TreeNode {
