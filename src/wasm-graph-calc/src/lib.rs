@@ -47,8 +47,6 @@ const FUNCTIONS: [&str; 1] = ["ln"];
 
 fn string_to_token(s: &str) -> Option<LexerTokenType> {
 
-    dbg!(s);
-
     Some(match s {
         "+" => LexerTokenType::Add,
         "-" => LexerTokenType::Sub,
@@ -83,7 +81,7 @@ fn find_function(input: &str) -> Option<(Vec<char>, &str)> {
     None
 }
 
-fn generate_function<T>(i: &mut T, function_name: String) -> LexerTokenType
+fn generate_function<T>(i: &mut T, function_name: String) -> Result<LexerTokenType, LexError>
     where T: Iterator<Item = char>
 {
 
@@ -129,17 +127,59 @@ fn generate_function<T>(i: &mut T, function_name: String) -> LexerTokenType
         panic!();
     }
 
-    let parsed_sets: Vec<Vec<LexerToken>> = args_sets.into_iter()
+    let parsed_sets: Vec<Result<Vec<LexerToken>, LexError>> = args_sets.into_iter()
         .map(|set| set.iter().collect::<String>())
         .map(|set_string| {println!("SET: {}", set_string); lex(&set_string)})
         .collect();
 
-    LexerTokenType::Func(parsed_sets, function_name)
+    if parsed_sets.iter().any(|x| x.is_err()) {
+        return Err(LexError);
+    }
+
+    let parsed_sets: Vec<Vec<LexerToken>> = parsed_sets.into_iter()
+        .map(|x| x.unwrap())
+        .collect();
+
+    Ok(LexerTokenType::Func(parsed_sets, function_name))
 }
 
-pub fn lex(input: &str) -> Vec<LexerToken> {
+fn is_valid_brackets(input: &str) -> bool {
+    let mut bracket_depth: u32 = 0;
 
-    println!("input is {}", input);
+    for c in input.chars() {
+        match c {
+            '(' => {bracket_depth += 1},
+            ')' => {
+                if bracket_depth == 0 {
+                    return false;
+                }
+
+                bracket_depth -= 1;
+            },
+
+            _ => {}
+        }
+    }
+
+    bracket_depth == 0
+}
+
+#[derive(Debug)]
+pub struct LexError;
+
+impl std::fmt::Display for LexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "failed to lex expression")
+    }
+}
+
+impl std::error::Error for LexError {}
+
+pub fn lex(input: &str) -> Result<Vec<LexerToken>, LexError> {
+
+    if !is_valid_brackets(input) {
+        return Err(LexError);
+    }
 
     let mut iter = input.chars().peekable();
 
@@ -228,7 +268,7 @@ pub fn lex(input: &str) -> Vec<LexerToken> {
                     let function_type = generate_function(
                         &mut iter,
                         function_name.to_string()
-                    );
+                    )?;
 
                     out.push(LexerToken {
                         token_type: function_type,
@@ -262,7 +302,7 @@ pub fn lex(input: &str) -> Vec<LexerToken> {
         }
     }
 
-    out
+    Ok(out)
 }
 
 #[derive(Debug)]
@@ -329,7 +369,6 @@ fn find_next_op(items: &[LexerToken]) -> Option<usize> {
 }
 
 type TreeLink = Option<Box<TreeNode>>;
-pub type SharedVars = Rc<RefCell<HashMap<char, f64>>>;
 
 #[derive(Debug)]
 pub struct TreeNode {
@@ -339,6 +378,17 @@ pub struct TreeNode {
     left: TreeLink,
     right: TreeLink
 }
+
+#[derive(Debug)]
+pub struct EvaluateError;
+
+impl std::fmt::Display for EvaluateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "failed to evaluate expression")
+    }
+}
+
+impl std::error::Error for EvaluateError {}
 
 impl TreeNode {
     fn new_from_tokens(items: &[LexerToken]) -> Result<TreeNode, ParseError>  {
@@ -350,13 +400,23 @@ impl TreeNode {
 
                 if let LexerTokenType::Func(vars, _name) = &token_type {
 
-                    dbg!(items);
-
                     assert_eq!(items.len(), 1);
+
+                    let function_args: Vec<Result<TreeNode, ParseError>> = vars.iter()
+                        .map(|x| TreeNode::new_from_tokens(x))
+                        .collect();
+
+                    if function_args.iter().any(|x| x.is_err()) {
+                        return Err(ParseError);
+                    }
+
+                    let function_args: Vec<TreeNode> = function_args.into_iter()
+                        .map(|x| x.unwrap())
+                        .collect();
 
                     return Ok(TreeNode {
                         token_type: token_type.clone(),
-                        function_args: vars.iter().map(|x| TreeNode::new_from_tokens(x).unwrap()).collect(),
+                        function_args,
 
                         left: None,
                         right: None,
@@ -394,49 +454,52 @@ impl TreeNode {
         }
     }
 
-    fn evaluate(&self, vars: SharedVars) -> f64 {
+    fn evaluate(&self, vars: &HashMap<char, f64>) -> Result<f64, EvaluateError> {
         if let LexerTokenType::Num(num) = self.token_type {
 
             // num shouldn't have left and right args
             assert!(self.left.is_none());
             assert!(self.right.is_none());
+            assert!(self.function_args.is_empty());
 
-            return num;
+            return Ok(num);
 
         } else if let LexerTokenType::Var(var) = self.token_type {
             // var shouldn't have left and right args
             assert!(self.left.is_none());
             assert!(self.right.is_none());
+            assert!(self.function_args.is_empty());
 
-            let var_value = *vars.borrow().get(&var)
-                .unwrap();
+            let var_value: f64 = *vars.get(&var).ok_or(EvaluateError)?;
 
-            return var_value;
+            return Ok(var_value);
         }
 
         if let LexerTokenType::Func(_, name) = &self.token_type {
+
+            assert!(self.left.is_none());
+            assert!(self.right.is_none());
+
             if name == "ln" {
                 assert_eq!(self.function_args.len(), 1);
 
-                return self.function_args[0].evaluate(vars.clone()).ln();
+                return Ok(self.function_args[0].evaluate(vars)?.ln());
             }
 
             unimplemented!()
         }
 
-        dbg!(self);
+        let left_val: f64 = self.left.as_ref().unwrap().evaluate(vars)?;
+        let right_val: f64 = self.right.as_ref().unwrap().evaluate(vars)?;
 
-        let left_val = self.left.as_ref().unwrap().evaluate(vars.clone());
-        let right_val = self.right.as_ref().unwrap().evaluate(vars.clone());
-
-        match &self.token_type {
+        Ok(match &self.token_type {
             LexerTokenType::Add => left_val + right_val,
             LexerTokenType::Sub => left_val - right_val,
             LexerTokenType::Mul => left_val * right_val,
             LexerTokenType::Div => left_val / right_val,
 
             LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::Func(..) => unreachable!()
-        }
+        })
     }
 
 }
@@ -466,26 +529,183 @@ impl ParseTree {
         Ok(ParseTree { inner_tree })
     }
 
-    pub fn evaluate(&self, vars: SharedVars) -> f64 {
+    pub fn evaluate(&self, vars: &HashMap<char, f64>) -> Result<f64, EvaluateError> {
         if let Some(tree) = &self.inner_tree {
-            tree.evaluate(vars.clone())
+            tree.evaluate(&vars)
         } else {
             panic!()
         }
     }
 }
 
+/*
 #[wasm_bindgen]
-pub fn evaluate_string(input: String) -> Option<f64> {
+pub struct EvaluateResponse {
+    value: f64,
+    var: Option<char>
+}
 
-    let vars: SharedVars = Rc::new(RefCell::new(HashMap::new()));
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct EvaluateVarInput {
+    var: char,
+    value: f64
+}
 
-    let lexed = lex(&input);
+#[wasm_bindgen]
+pub fn evaluate_vars(input: String, vars: Vec<EvaluateVarInput>) -> Option<EvaluateResponse> {
+
+    let shared_vars: SharedVars = Rc::new(RefCell::new(
+        HashMap::new()
+    ));
+
+    for v in vars {
+        shared_vars.borrow_mut().insert(v.var, v.value);
+    }
+
+    let equals_amt = input
+        .chars()
+        .filter(|x| *x == '=')
+        .count();
+
+    if equals_amt == 0 {
+        return Some(EvaluateResponse {
+            value: evaluate_string(input, shared_vars.clone())?,
+            var: None
+        });
+    }
+
+    if equals_amt != 1 {
+        return None;
+    }
+
+    let mut parts: Vec<String> = input
+        .split("=")
+        .map(|x| x.to_string())
+        .collect();
+
+    parts[0] = parts[0].trim().to_string();
+
+    if parts[0].len() != 1 {
+        return None;
+    }
+
+    Some(EvaluateResponse {
+        value: evaluate_string(input, shared_vars.clone())?,
+        var: Some(parts[0].chars().nth(0).unwrap())
+    })
+
+}
+
+//#[wasm_bindgen]
+pub fn evaluate_string(input: String, vars: SharedVars) -> Option<f64> {
+    let lexed = match lex(&input) {
+        Ok(o) => o,
+
+        Err(_) => {
+            return None
+        }
+    };
+
     match ParseTree::new(&lexed) {
         Ok(tree) => {
-            Some(tree.evaluate(vars))
+            match tree.evaluate(vars) {
+                Ok(o) => Some(o),
+                Err(_) => None
+            }
         }
 
         Err(_) => None
+    }
+}
+*/
+
+#[wasm_bindgen]
+pub struct Evaluator {
+    vars: HashMap<char, f64>
+}
+
+#[wasm_bindgen]
+#[derive(Debug)]
+pub struct EvaluatorResponse {
+    value: f64,
+    variable: Option<char>
+}
+
+fn evaluate_string_if_valid(inp: &str, vars: &HashMap<char, f64>) -> Option<f64> {
+    let tokens = match lex(inp) {
+        Ok(o) => o,
+
+        Err(_) => {
+            return None;
+        }
+    };
+
+    let tree = match ParseTree::new(&tokens) {
+        Ok(o) => o,
+
+        Err(_) => {
+            return None;
+        }
+    };
+
+    // fix shared type
+    match tree.evaluate(vars) {
+        Ok(o) => Some(o),
+
+        Err(_) => None
+    }
+}
+
+#[wasm_bindgen]
+impl Evaluator {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Evaluator {
+        Evaluator {
+            vars: HashMap::new()
+        }
+    }
+
+    pub fn evaluate(&mut self, input: String) -> Option<EvaluatorResponse> {
+        let equals_count: usize = input.chars()
+            .filter(|x| *x == '=')
+            .count();
+
+        println!("eq c: {}", equals_count);
+
+        match equals_count {
+            0 => {
+                evaluate_string_if_valid(&input, &self.vars).map(|v| EvaluatorResponse {
+                            value: v,
+                            variable: None
+                        })
+            },
+
+            1 => {
+                let parts: Vec<&str> = input.split('=').collect();
+
+                if parts[0].trim().len() != 1 {
+                    return None;
+                }
+
+                let var: char = parts[0].trim().chars().next().unwrap();
+
+                match evaluate_string_if_valid(parts[1], &self.vars) {
+                    Some(v) => {
+
+                        self.vars.insert(var, v);
+
+                        Some(EvaluatorResponse {
+                            value: v,
+                            variable: Some(var)
+                        })
+                    },
+
+                    None => None
+                }
+            }
+
+            _ => None
+        }
     }
 }

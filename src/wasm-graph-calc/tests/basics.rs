@@ -4,15 +4,9 @@ use wasm_graph_calc::*;
 fn lexer() {
 
     //let s = "(3 + 2) *ln( 5 + 2)";
-    let s = "a";
 
-    let items = lex(s);
-    println!("{}", items.len());
+    let mut evaluator: Evaluator = Evaluator::new();
 
-    for item in items {
-        println!("{:?}", item);
-    }
-
-    println!("{:?}", evaluate_string(s.to_string()));
-
+    println!("{:?}", evaluator.evaluate("a=2*5".to_string()));
+    println!("{:?}", evaluator.evaluate("a + 1".to_string()));
 }
