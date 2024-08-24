@@ -6,15 +6,15 @@ function Graph({equations, setEquations, wasmLoaded}: {equations: string[], setE
 
 	useEffect(() => {
 
-		if (!wasmLoaded) {
-			console.log("wasm not loaded");
-			return;
-		} else {
-			//console.log("wasm loaded");
-			//greet("wasm loaded");
-			//alert(evaluate_string("5+2*3"));
-			//alert(evaluate_string("(5+2)*3"));
-		}
+		// if (!wasmLoaded) {
+		// 	console.log("wasm not loaded");
+		// 	return;
+		// } else {
+		// 	//console.log("wasm loaded");
+		// 	//greet("wasm loaded");
+		// 	//alert(evaluate_string("5+2*3"));
+		// 	//alert(evaluate_string("(5+2)*3"));
+		// }
 
 		const c = document.getElementById("graph")! as HTMLCanvasElement;
 		const ctx = c.getContext("2d")!;

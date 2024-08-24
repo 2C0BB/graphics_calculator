@@ -6,7 +6,7 @@ import './App.css'
 import EquationInput from './EquationInput'
 import Graph from './Graph';
 
-import init, { greet } from "./wasm-graph-calc/pkg/wasm_graph_calc.js"
+import init, { Evaluator, EvaluatorResponse, initSync } from "./wasm-graph-calc/pkg/wasm_graph_calc.js"
 
 function App() {
 	const [equations, setEquations] = useState([
@@ -15,12 +15,29 @@ function App() {
 
 	const [wasmLoaded, setWasmLoaded] = useState(false);
 
-	// load wasm
+
 	useEffect(() => {
-		init().then(() => {
-			setWasmLoaded(true)
-		})
-	})
+
+		const asyncTask = async () => {
+			await init();
+			setWasmLoaded(true);
+
+			// console.log("Finished Load");
+
+			// let evaluator = new Evaluator();
+			// console.log(evaluator.evaluate("a=1+2"));
+			// console.log(evaluator.evaluate("a+5"));
+		}
+
+		asyncTask()
+	});
+
+	// load wasm
+	// useEffect(() => {
+	// 	init().then(() => {
+	// 		setWasmLoaded(true)
+	// 	})
+	// })
 
   return (
 	<>

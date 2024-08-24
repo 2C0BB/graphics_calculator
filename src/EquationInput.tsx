@@ -1,4 +1,5 @@
-import { evaluate_string } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
+import { useEffect, useState } from "react";
+import { Evaluator, EvaluateResponse, EvaluatorResponse } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
 
 function EquationInput({
 		equations,
@@ -33,36 +34,53 @@ function EquationInput({
 		setEquations(data);
 	}
 
+	function generateEquations(equations: string[]) {
+
+
+		if (!wasmLoaded) {
+			return;
+		}
+
+		console.log(equations);
+
+		let evaluator = new Evaluator();
+
+		let out = equations.map((eq: string, idx: number) => {
+			let response = undefined;
+	
+
+			console.log("boutta evaluate: " + eq);
+
+			response = evaluator.evaluate(eq);
+			console.log(response);
+
+			return (
+				<div className="equation" key={idx}>
+				<input
+					//contentEditable={true}
+					placeholder="equation" 
+					value={eq}
+					onChange={event => handleEquationChange(idx, event)}
+				/>
+
+				<button onClick={() => removeEquation(idx)}>X</button>
+
+				{response != undefined &&
+				<div className="result">
+					<p>= {response}</p>
+				</div>
+				}
+			</div>
+			);
+		})
+
+		evaluator.free();
+		return out;
+	}
+
 	return (
 		<>
-			{equations.map((eq: string, idx: number) => {
-				let result;
-				
-				if (wasmLoaded) {
-					result = evaluate_string(eq);
-				} else {
-					result = undefined;
-				}
-
-				return (
-
-					<div className="equation" key={idx}>
-						<input
-							placeholder="equation" 
-							value={eq}
-							onChange={event => handleEquationChange(idx, event)}
-						/>
-
-						<button onClick={() => removeEquation(idx)}>X</button>
-
-						{result != undefined &&
-						<div className="result">
-							<p>= {result}</p>
-						</div>
-						}
-					</div>
-				);
-			})}
+			{generateEquations(equations)}
 
 			<button onClick={addEquation} className="new_eq">+</button>
 

@@ -628,8 +628,8 @@ pub struct Evaluator {
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct EvaluatorResponse {
-    value: f64,
-    variable: Option<char>
+    pub value: f64,
+    pub variable: Option<char>
 }
 
 fn evaluate_string_if_valid(inp: &str, vars: &HashMap<char, f64>) -> Option<f64> {
@@ -666,7 +666,12 @@ impl Evaluator {
         }
     }
 
-    pub fn evaluate(&mut self, input: String) -> Option<EvaluatorResponse> {
+    pub fn evaluate(&mut self, input: String) -> Option<f64> {
+
+        //alert(&input);
+        //alert(&format!("{:?}", self.vars));
+
+
         let equals_count: usize = input.chars()
             .filter(|x| *x == '=')
             .count();
@@ -675,10 +680,13 @@ impl Evaluator {
 
         match equals_count {
             0 => {
-                evaluate_string_if_valid(&input, &self.vars).map(|v| EvaluatorResponse {
+                /*evaluate_string_if_valid(&input, &self.vars).map(|v| EvaluatorResponse {
                             value: v,
                             variable: None
                         })
+                */
+
+                evaluate_string_if_valid(&input, &self.vars).map(|v| v)
             },
 
             1 => {
@@ -695,10 +703,14 @@ impl Evaluator {
 
                         self.vars.insert(var, v);
 
+                        /*
                         Some(EvaluatorResponse {
                             value: v,
                             variable: Some(var)
                         })
+                        */
+
+                        Some(v)
                     },
 
                     None => None
