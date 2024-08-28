@@ -1,7 +1,21 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::collections::hash_map::HashMap;
 use wasm_bindgen::prelude::*;
+use serde::{Serialize, Deserialize};
+
+mod utils;
+
+#[wasm_bindgen]
+pub fn setup() {
+    utils::set_panic_hook();
+}
+
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
 
 #[wasm_bindgen]
 extern {
@@ -43,7 +57,7 @@ pub struct LexerToken {
     bracket_depth: u32
 }
 
-const FUNCTIONS: [&str; 1] = ["ln"];
+const FUNCTIONS: [&str; 5] = ["ln", "sin", "cos", "tan", "sqrt"];
 
 fn string_to_token(s: &str) -> Option<LexerTokenType> {
 
@@ -217,16 +231,20 @@ pub fn lex(input: &str) -> Result<Vec<LexerToken>, LexError> {
         }
 
 
-        if character.is_numeric() {
+        if character.is_numeric() || character == '.' {
             let mut num_buf: Vec<char> = vec![character];
             
             while let Some(c) = iter.peek() {
-                if !c.is_numeric() {
+                if !(c.is_numeric() || *c == '.') {
                     break;
                 }
 
                 num_buf.push(*c);
                 iter.next();
+            }
+
+            if num_buf[0] == '.' {
+                num_buf.insert(0, '0');
             }
 
             let number: f64 = num_buf
@@ -486,9 +504,31 @@ impl TreeNode {
                 return Ok(self.function_args[0].evaluate(vars)?.ln());
             }
 
+            if name == "sin" {
+                assert_eq!(self.function_args.len(), 1);
+
+                return Ok(self.function_args[0].evaluate(vars)?.sin());
+            }
+            if name == "cos" {
+                assert_eq!(self.function_args.len(), 1);
+
+                return Ok(self.function_args[0].evaluate(vars)?.cos());
+            }
+            if name == "tan" {
+                assert_eq!(self.function_args.len(), 1);
+
+                return Ok(self.function_args[0].evaluate(vars)?.tan());
+            }
+            if name == "sqrt" {
+                assert_eq!(self.function_args.len(), 1);
+
+                return Ok(self.function_args[0].evaluate(vars)?.sqrt());
+            }
+
             unimplemented!()
         }
 
+        // TODO: remove unwraps if necessary
         let left_val: f64 = self.left.as_ref().unwrap().evaluate(vars)?;
         let right_val: f64 = self.right.as_ref().unwrap().evaluate(vars)?;
 
@@ -531,7 +571,7 @@ impl ParseTree {
 
     pub fn evaluate(&self, vars: &HashMap<char, f64>) -> Result<f64, EvaluateError> {
         if let Some(tree) = &self.inner_tree {
-            tree.evaluate(&vars)
+            tree.evaluate(vars)
         } else {
             panic!()
         }
@@ -633,6 +673,9 @@ pub struct EvaluatorResponse {
 }
 
 fn evaluate_string_if_valid(inp: &str, vars: &HashMap<char, f64>) -> Option<f64> {
+
+    //log(format!("inp: {}, vars: {:?}", inp, vars).as_str());
+
     let tokens = match lex(inp) {
         Ok(o) => o,
 
@@ -641,6 +684,8 @@ fn evaluate_string_if_valid(inp: &str, vars: &HashMap<char, f64>) -> Option<f64>
         }
     };
 
+    //log(format!("tokens: {:?}", tokens).as_str());
+
     let tree = match ParseTree::new(&tokens) {
         Ok(o) => o,
 
@@ -648,6 +693,8 @@ fn evaluate_string_if_valid(inp: &str, vars: &HashMap<char, f64>) -> Option<f64>
             return None;
         }
     };
+
+    //log(format!("tree: {:?}", tree).as_str());
 
     // fix shared type
     match tree.evaluate(vars) {
@@ -667,7 +714,6 @@ impl Evaluator {
     }
 
     pub fn evaluate(&mut self, input: String) -> Option<f64> {
-
         //alert(&input);
         //alert(&format!("{:?}", self.vars));
 
@@ -686,7 +732,7 @@ impl Evaluator {
                         })
                 */
 
-                evaluate_string_if_valid(&input, &self.vars).map(|v| v)
+                evaluate_string_if_valid(&input, &self.vars)
             },
 
             1 => {
@@ -720,4 +766,94 @@ impl Evaluator {
             _ => None
         }
     }
+}
+
+/*
+#[wasm_bindgen]
+pub fn evaluate_graph(input: &str) -> JsValue {
+
+    let mut points: Vec<[f64; 2]> = Vec::new();
+
+    let mut i: f64 = -10.0;
+
+    let mut vars: HashMap<char, f64> = HashMap::new();
+
+    while i <= 10.0 {
+        let x = i;
+
+        vars.insert('x', x);
+
+        log(format!("outer vars: {:?}", vars).as_str());
+
+        log("inner loop");
+
+        match evaluate_string_if_valid(input, &vars) {
+
+
+            Some(y) => {
+                points.push([x, y]);
+            },
+            None => {
+                return serde_wasm_bindgen::to_value(&()).unwrap();
+            }
+        }
+
+        i += 0.1;
+    }
+
+    let out = EvaluateResponse::Graph(points);
+    serde_wasm_bindgen::to_value(&out).unwrap()
+}
+
+#[derive(Serialize, Deserialize)]
+//#[serde(tag = "type")]
+enum EvaluateResponse {
+    Value(f64),
+    Graph(Vec<[f64; 2]>)
+}
+*/
+
+#[wasm_bindgen]
+pub fn evaluate_graph(input: &str) -> JsValue {
+    let tokens = match lex(input) {
+        Ok(v) => {
+            v
+        },
+
+        Err(_) => {
+            log("Lex failed");
+            return serde_wasm_bindgen::to_value(&()).unwrap();
+        }
+    };
+
+    log(format!("{:?}", tokens).as_str());
+
+    let tree = match ParseTree::new(&tokens) {
+        Ok(v) => v,
+        Err(_) => {
+            log("parse failed");
+            return serde_wasm_bindgen::to_value(&()).unwrap();
+        }
+    };
+
+    let mut i: f64 = -10.0;
+    let mut vars: HashMap<char, f64> = HashMap::new();
+
+    let mut out: Vec<[f64; 2]> = Vec::new();
+    while i <= 10.0 {
+        vars.insert('x', i);
+
+        let value = match tree.evaluate(&vars) {
+            Ok(v) => v,
+            Err(_) => {
+                log("evaluate failed");
+            return serde_wasm_bindgen::to_value(&()).unwrap();
+            }
+        };
+
+        out.push([i, value]);
+        i += 0.01;
+    }
+
+    serde_wasm_bindgen::to_value(&out).unwrap()
 }

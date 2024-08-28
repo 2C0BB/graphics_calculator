@@ -2,66 +2,94 @@ import { useEffect } from "react";
 
 import { greet, evaluate_string } from "./pkg/wasm_graph_calc.js";
 
+
+import * as d3 from "d3";
+import { evaluate_graph } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
+
 function Graph({equations, setEquations, wasmLoaded}: {equations: string[], setEquations: any, wasmLoaded: boolean}) {
 
 	useEffect(() => {
 
-		// if (!wasmLoaded) {
-		// 	console.log("wasm not loaded");
-		// 	return;
-		// } else {
-		// 	//console.log("wasm loaded");
-		// 	//greet("wasm loaded");
-		// 	//alert(evaluate_string("5+2*3"));
-		// 	//alert(evaluate_string("(5+2)*3"));
-		// }
+		d3.select("path")
+			.attr('d', lineGen([]))
 
-		const c = document.getElementById("graph")! as HTMLCanvasElement;
-		const ctx = c.getContext("2d")!;
-
-		ctx.beginPath();
-
-		console.log(c.width, c.height);
-
-		ctx.clearRect(0, 0, c.width, c.height);
-		
-		ctx.moveTo(0, 0);
-
-		for (let i = 0; i < equations.length; i++) {
-			let num: number = parseInt(equations[i]);
-			console.log(num);
-			ctx.lineTo(num, num);
+		if (!wasmLoaded) {
+			return;
 		}
 
-		ctx.stroke();
+		let data = evaluate_graph(equations[0]);
 
+		if (!data) {
+			return;
+		}
+		
+		data = data.map(point => 
+			[xScale(point[0]), yScale(point[1])]
+		);
+
+		console.log("data valid");
+
+		d3.select("path")
+			.attr('d', lineGen(data))
+			.attr('fill', 'none')
+			.attr("stroke", "black")
+			.attr("stroke-width", 1.5);
 
 	}, [equations, wasmLoaded]);
 
-	// useEffect(() => {
-	// 	console.log(equations);
-	// 	var c = document.getElementById("graph")! as HTMLCanvasElement;
-	// 	var ctx = c.getContext("2d")!;
 
-	// 	// ctx.clearRect(0, 0, c.width, c.height);
+	let lineGen = d3.line()
+		.curve(d3.curveCardinal);
+		//.curve(d3.curveLinear)
 
-	// 	ctx.moveTo(0, 0);
-	// 	ctx.lineWidth = 10.0;
-	// 	ctx.scale(0.1, 0.1)
+	let xAxisScale = d3.scaleLinear()
+		.domain([-10, 10])
+		.range([0, 400]);
 
-	// 	for (let i = 0; i < equations.length; i++) {
-	// 		let num: number = parseInt(equations[i]);
-	// 		console.log(num);
-	// 		ctx.lineTo(num, num);
-	// 	}
+	let axis = d3.axisBottom(xAxisScale);
+	
+	let xScale = d3.scaleLinear()
+		.domain([-10, 10])
+		.range([0, 500])
 
-	// 	ctx.stroke();
+	let yScale = d3.scaleLinear()
+		.domain([-10, 10])
+		.range([500, 0])
 
-	// }, [equations]);
+	let points = [];
 
+	for (let i = -10.0; i < 10.0; i += 0.1) {
+
+		let x = i;
+		let y = 5 * Math.pow(x, 3) + 7 * Math.pow(x, 2) - 5 * x;
+
+		points.push([xScale(x), yScale(y)]);
+	}
+
+	//console.log(xScale(-10));
+
+	//console.log(points);
+
+	useEffect(() => {
+		let pathData = lineGen(points);
+		d3.select("path")
+			.attr('d', pathData)
+			.attr('fill', 'none')
+			.attr("stroke", "black")
+			.attr("stroke-width", 1.5);
+	}, []);
+	
 	return (
-		<canvas id="graph" width={4000} height={2000}></canvas>
+
+		<>
+			<svg width={500} height={500}>
+				<g id="x-axis"></g>
+				<g id="y-axis"></g>
+				<path></path>
+			</svg>
+		</>
 	);
+
 }
 
 export default Graph;
