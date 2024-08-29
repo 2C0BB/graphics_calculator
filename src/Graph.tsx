@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { greet, evaluate_string } from "./pkg/wasm_graph_calc.js";
 
@@ -8,9 +8,15 @@ import { evaluate_graph } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
 
 function Graph({equations, setEquations, wasmLoaded}: {equations: string[], setEquations: any, wasmLoaded: boolean}) {
 
+	var svg;
+
 	useEffect(() => {
 
-		d3.select("path")
+		if (!svg) {
+			return
+		}
+
+		svg
 			.attr('d', lineGen([]))
 
 		if (!wasmLoaded) {
@@ -70,23 +76,62 @@ function Graph({equations, setEquations, wasmLoaded}: {equations: string[], setE
 
 	//console.log(points);
 
+	let [graphMade, setGraphMade] = useState(
+		false
+	);
+
 	useEffect(() => {
-		let pathData = lineGen(points);
-		d3.select("path")
-			.attr('d', pathData)
+		// let pathData = lineGen(points);
+		// d3.select("path")
+		// 	.attr('d', pathData)
+		// 	.attr('fill', 'none')
+		// 	.attr("stroke", "black")
+		// 	.attr("stroke-width", 1.5);
+
+		if (graphMade) {
+			return;
+		}
+		console.log("runnning make graph")
+
+		setGraphMade(true);
+
+		var width = 500;
+		var height = 500;
+
+		svg = d3.select("#graph")
+			.append("svg")
+				.attr("width", width)
+				.attr("height", height)
+			.append("g")
+				//.attr("transform",
+				//"translate(" + margin.left + "," + margin.top + ")");
+
+		var x = d3.scaleLinear()
+			.domain([-10, 10])
+			.range([0, width]);
+	
+		svg.append("g")
+			.call(d3.axisLeft(x));
+
+		var y = d3.scaleLinear()
+			.domain([-10, 10])
+			.range([ height, 0 ]);
+
+		svg.append("g")
+			.call(d3.axisLeft(y));
+
+		svg.append("path")
+			.attr('d', lineGen(points))
 			.attr('fill', 'none')
 			.attr("stroke", "black")
-			.attr("stroke-width", 1.5);
-	}, []);
+			.attr("stroke-width", 1.5);	
+
+	}, [graphMade]);
 	
 	return (
 
 		<>
-			<svg width={500} height={500}>
-				<g id="x-axis"></g>
-				<g id="y-axis"></g>
-				<path></path>
-			</svg>
+			<div id="graph"></div>
 		</>
 	);
 

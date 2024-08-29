@@ -847,7 +847,7 @@ pub fn evaluate_graph(input: &str) -> JsValue {
             Ok(v) => v,
             Err(_) => {
                 log("evaluate failed");
-            return serde_wasm_bindgen::to_value(&()).unwrap();
+                return serde_wasm_bindgen::to_value(&()).unwrap();
             }
         };
 
