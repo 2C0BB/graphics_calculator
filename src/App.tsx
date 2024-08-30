@@ -14,13 +14,13 @@ function App() {
 	
 	useEffect(() => {
 
-		const asyncTask = async () => {
+		const wasmSetup = async () => {
 			await init();
 			setup(); // set panic hook
 			setWasmLoaded(true);
 		}
 
-		asyncTask()
+		wasmSetup()
 	});
 
 	const [equations, setEquations] = useState([

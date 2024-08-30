@@ -857,3 +857,60 @@ pub fn evaluate_graph(input: &str) -> JsValue {
 
     serde_wasm_bindgen::to_value(&out).unwrap()
 }
+
+pub fn estimate_intercepts(a: &[LexerToken], b: &[LexerToken]) -> Option<f64> {
+    let top_node = TreeNode {
+        token_type: LexerTokenType::Sub,
+        function_args: Vec::new(),
+        left: Some(Box::new(TreeNode::new_from_tokens(a).unwrap())),
+        right: Some(Box::new(TreeNode::new_from_tokens(b).unwrap())),
+    };
+
+    let tree = ParseTree {
+        inner_tree: Some(Box::new(top_node))
+    };
+
+    let resolution: f64 = 0.0001;
+    let mut x = -10.0;
+
+    let mut lowest_val: Option<f64> = None;
+    let mut lowest_x: Option<f64> = None;
+
+    let mut vars: HashMap<char, f64> = HashMap::new();
+
+    while x <= 10.0 {
+        vars.insert('x', x);
+
+        let current_val = match tree.evaluate(&vars) {
+            Ok(v) => v,
+
+            Err(_) => {
+                return None;
+            }
+        };
+
+        println!("{}", current_val);
+
+        if current_val == 0.0 {
+            println!("found exact intersect");
+            return Some(current_val);
+        }
+
+        match lowest_val {
+            Some(lv) => {
+                if current_val.abs() < lv {
+                    lowest_val = Some(current_val.abs());
+                    lowest_x = Some(x);
+                }
+            },
+            None => {
+                lowest_val = Some(current_val.abs());
+                lowest_x = Some(x);
+            }
+        }
+
+        x += resolution;
+    }
+
+    lowest_x
+}
