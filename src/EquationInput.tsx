@@ -36,9 +36,8 @@ function EquationInput({
 		setEquations(data);
 	}
 
-	function generateEquations(eqs: any, ans: (undefined | number)[]) {
+	function generateEquations(eqs: any, ans: any[]) {
 		let out = ans.map((a, idx) => {
-
 			return (
 				<div className="equation" key={idx}>
 				<input
@@ -48,11 +47,16 @@ function EquationInput({
 					onChange={event => handleEquationChange(idx, event)}
 				/>
 
-				<button onClick={() => removeEquation(idx)}>X</button>
+				{/* <div className="differentiate">
+					<p>differentiate</p>
+					{/* <input type="checkbox" /> 
+				</div> */}
 
-				{a != undefined &&
+				<button className="remove" onClick={() => removeEquation(idx)}>X</button>
+
+				{a &&
 				<div className="result">
-					<p>= {a}</p>
+					<p>{a.var_name} = {a.value}</p>
 				</div>
 				}
 			</div>

@@ -2,6 +2,8 @@ use std::collections::hash_map::HashMap;
 use wasm_bindgen::prelude::*;
 use serde::{Serialize, Deserialize};
 
+use regex::Regex;
+
 mod utils;
 
 #[wasm_bindgen]
@@ -34,6 +36,7 @@ pub enum LexerTokenType {
     Div,
     Mul,
     Func(Vec<Vec<LexerToken>>, String),
+    X,
     Var(char),
     Num(f64)
 }
@@ -46,7 +49,7 @@ fn value_operator(input: &LexerTokenType) -> u32 {
         LexerTokenType::Add => 2,
         LexerTokenType::Sub => 2,
 
-        LexerTokenType::Num(_) | LexerTokenType::Var(_) => panic!()
+        LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::X => panic!()
     }
 }
 
@@ -320,6 +323,16 @@ pub fn lex(input: &str) -> Result<Vec<LexerToken>, LexError> {
         }
     }
 
+    out = out.into_iter()
+        .map(|mut t| {
+            if let LexerTokenType::Var('x') = t.token_type {
+                t.token_type = LexerTokenType::X;
+            }
+
+            t
+        })
+        .collect();
+
     Ok(out)
 }
 
@@ -353,7 +366,7 @@ fn find_next_op(items: &[LexerToken]) -> Option<usize> {
 
     for (pos, item) in items.iter().enumerate() {
         match item.token_type {
-            LexerTokenType::Num(_) | LexerTokenType::Var(_) => {
+            LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::X => {
                 continue;
             }
 
@@ -472,7 +485,7 @@ impl TreeNode {
         }
     }
 
-    fn evaluate(&self, vars: &HashMap<char, f64>) -> Result<f64, EvaluateError> {
+    fn evaluate(&self, x: Option<f64>, vars: &HashMap<char, f64>) -> Result<f64, EvaluateError> {
         if let LexerTokenType::Num(num) = self.token_type {
 
             // num shouldn't have left and right args
@@ -501,36 +514,43 @@ impl TreeNode {
             if name == "ln" {
                 assert_eq!(self.function_args.len(), 1);
 
-                return Ok(self.function_args[0].evaluate(vars)?.ln());
+                return Ok(self.function_args[0].evaluate(x, vars)?.ln());
             }
 
             if name == "sin" {
                 assert_eq!(self.function_args.len(), 1);
 
-                return Ok(self.function_args[0].evaluate(vars)?.sin());
+                return Ok(self.function_args[0].evaluate(x, vars)?.sin());
             }
             if name == "cos" {
                 assert_eq!(self.function_args.len(), 1);
 
-                return Ok(self.function_args[0].evaluate(vars)?.cos());
+                return Ok(self.function_args[0].evaluate(x, vars)?.cos());
             }
             if name == "tan" {
                 assert_eq!(self.function_args.len(), 1);
 
-                return Ok(self.function_args[0].evaluate(vars)?.tan());
+                return Ok(self.function_args[0].evaluate(x, vars)?.tan());
             }
             if name == "sqrt" {
                 assert_eq!(self.function_args.len(), 1);
 
-                return Ok(self.function_args[0].evaluate(vars)?.sqrt());
+                return Ok(self.function_args[0].evaluate(x, vars)?.sqrt());
             }
 
             unimplemented!()
         }
 
+        if let LexerTokenType::X = self.token_type {
+            return match x {
+                Some(v) => Ok(v),
+                None => Err(EvaluateError)
+            };
+        }
+
         // TODO: remove unwraps if necessary
-        let left_val: f64 = self.left.as_ref().unwrap().evaluate(vars)?;
-        let right_val: f64 = self.right.as_ref().unwrap().evaluate(vars)?;
+        let left_val: f64 = self.left.as_ref().unwrap().evaluate(x, vars)?;
+        let right_val: f64 = self.right.as_ref().unwrap().evaluate(x, vars)?;
 
         Ok(match &self.token_type {
             LexerTokenType::Add => left_val + right_val,
@@ -538,7 +558,7 @@ impl TreeNode {
             LexerTokenType::Mul => left_val * right_val,
             LexerTokenType::Div => left_val / right_val,
 
-            LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::Func(..) => unreachable!()
+            LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::Func(..) | LexerTokenType::X => unreachable!()
         })
     }
 
@@ -569,348 +589,306 @@ impl ParseTree {
         Ok(ParseTree { inner_tree })
     }
 
-    pub fn evaluate(&self, vars: &HashMap<char, f64>) -> Result<f64, EvaluateError> {
+    pub fn evaluate(&self, x: Option<f64>, vars: &HashMap<char, f64>) -> Result<f64, EvaluateError> {
         if let Some(tree) = &self.inner_tree {
-            tree.evaluate(vars)
+            tree.evaluate(x, vars)
         } else {
             panic!()
         }
     }
 }
 
-/*
 #[wasm_bindgen]
-pub struct EvaluateResponse {
-    value: f64,
-    var: Option<char>
+pub struct Evaluator {
+    vars: HashMap<char, f64>,
+    graphs: HashMap<char, ParseTree>,
 }
 
-#[wasm_bindgen]
-#[derive(Clone)]
-pub struct EvaluateVarInput {
-    var: char,
-    value: f64
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum EvaluatorResponse {
+    Value {
+        value: f64,
+        var_name: Option<String>
+    },
+
+    Graph {
+        points: Vec<[f64; 2]>,
+        //graph_name don't know if this is necessary yet, may be used for 
+    }
 }
 
-#[wasm_bindgen]
-pub fn evaluate_vars(input: String, vars: Vec<EvaluateVarInput>) -> Option<EvaluateResponse> {
+fn evaluate_value_if_valid(
+    input: &str,
+    vars: &HashMap<char, f64>
+) -> Option<f64> {
 
-    let shared_vars: SharedVars = Rc::new(RefCell::new(
-        HashMap::new()
-    ));
-
-    for v in vars {
-        shared_vars.borrow_mut().insert(v.var, v.value);
-    }
-
-    let equals_amt = input
-        .chars()
-        .filter(|x| *x == '=')
-        .count();
-
-    if equals_amt == 0 {
-        return Some(EvaluateResponse {
-            value: evaluate_string(input, shared_vars.clone())?,
-            var: None
-        });
-    }
-
-    if equals_amt != 1 {
-        return None;
-    }
-
-    let mut parts: Vec<String> = input
-        .split("=")
-        .map(|x| x.to_string())
-        .collect();
-
-    parts[0] = parts[0].trim().to_string();
-
-    if parts[0].len() != 1 {
-        return None;
-    }
-
-    Some(EvaluateResponse {
-        value: evaluate_string(input, shared_vars.clone())?,
-        var: Some(parts[0].chars().nth(0).unwrap())
-    })
-
-}
-
-//#[wasm_bindgen]
-pub fn evaluate_string(input: String, vars: SharedVars) -> Option<f64> {
-    let lexed = match lex(&input) {
-        Ok(o) => o,
+    let tokens = match lex(input) {
+        Ok(v) => v,
 
         Err(_) => {
-            return None
+            return None;
         }
     };
 
-    match ParseTree::new(&lexed) {
-        Ok(tree) => {
-            match tree.evaluate(vars) {
-                Ok(o) => Some(o),
-                Err(_) => None
-            }
+    let tree = match ParseTree::new(&tokens) {
+        Ok(v) => v,
+
+        Err(_) => {
+            return None;
+        }
+    };
+
+    let value = match tree.evaluate(None, vars) {
+        Ok(v) => v,
+
+        Err(_) => {
+            return None;
+        }
+    };
+
+    Some(value)
+
+}
+
+fn differentiate(function: &ParseTree, x: f64, vars: &HashMap<char, f64>) -> Option<f64> {
+    let h = 0.0001;
+
+    let f_xh = match function.evaluate(Some(x + h), vars) {
+        Ok(v) => v,
+        Err(_) => {
+            return None;
+        }
+    };
+
+    let f_x = match function.evaluate(Some(x), vars) {
+        Ok(v) => v,
+        Err(_) => {
+            return None;
+        }
+    };
+
+    Some((f_xh - f_x) / h)
+}
+
+/*
+struct FunctionDef {
+    name: char,
+    differentiates: u32,
+    inside: String,
+}
+
+impl FunctionDef {
+    /*
+    fn new(s: &'a str) -> Self {
+        let name = s.chars().nth(0).unwrap();
+        let differentiates = s.chars()
+            .filter(|x| *x == '\'')
+            .count() as u32;
+        
+        let inside_start = s.find('(').unwrap() + 1;
+        let inside_end = s.find(')').unwrap();
+
+        let inside = &s[inside_start..inside_end];
+
+        FunctionDef { name, differentiates, inside }
+    }
+    */
+
+    fn new(s: &str) {
+        let mut characters= s.chars().peekable();
+
+        let name: char = characters.next().unwrap();
+
+        let mut differentiates: usize = 0;
+        let mut inner: Vec<char> = Vec::new();
+
+        while let Some('\'') = characters.peek() {
+            differentiates += 1;
+            characters.next();
         }
 
-        Err(_) => None
+        characters.next();
+
+        let bracket_depth: u32 = 1;
+
+        //for c in 
     }
 }
 */
-
-#[wasm_bindgen]
-pub struct Evaluator {
-    vars: HashMap<char, f64>
-}
-
-#[wasm_bindgen]
-#[derive(Debug)]
-pub struct EvaluatorResponse {
-    pub value: f64,
-    pub variable: Option<char>
-}
-
-fn evaluate_string_if_valid(inp: &str, vars: &HashMap<char, f64>) -> Option<f64> {
-
-    //log(format!("inp: {}, vars: {:?}", inp, vars).as_str());
-
-    let tokens = match lex(inp) {
-        Ok(o) => o,
-
-        Err(_) => {
-            return None;
-        }
-    };
-
-    //log(format!("tokens: {:?}", tokens).as_str());
-
-    let tree = match ParseTree::new(&tokens) {
-        Ok(o) => o,
-
-        Err(_) => {
-            return None;
-        }
-    };
-
-    //log(format!("tree: {:?}", tree).as_str());
-
-    // fix shared type
-    match tree.evaluate(vars) {
-        Ok(o) => Some(o),
-
-        Err(_) => None
-    }
-}
 
 #[wasm_bindgen]
 impl Evaluator {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Evaluator {
         Evaluator {
-            vars: HashMap::new()
+            vars: HashMap::new(),
+            graphs: HashMap::new(),
         }
     }
 
-    pub fn evaluate(&mut self, input: String) -> Option<f64> {
-        //alert(&input);
-        //alert(&format!("{:?}", self.vars));
-
+    pub fn evaluate(&mut self, input: String) -> JsValue {
 
         let equals_count: usize = input.chars()
             .filter(|x| *x == '=')
             .count();
 
-        println!("eq c: {}", equals_count);
-
         match equals_count {
             0 => {
-                /*evaluate_string_if_valid(&input, &self.vars).map(|v| EvaluatorResponse {
-                            value: v,
-                            variable: None
-                        })
-                */
 
-                evaluate_string_if_valid(&input, &self.vars)
+                let re = Regex::new(r"^[a-zA-Z][']\(x\)$").unwrap();
+
+                if re.is_match(&input) {
+
+                    let fn_name = input.chars().nth(0).unwrap();
+
+                    /*
+                    let brackets_re = Regex::new(r"/\(.*\)/gm").unwrap();
+                    log(&input);
+                    let inner_text = brackets_re.find(&input)
+                        .unwrap()
+                        .as_str();
+
+                    let inner_len = inner_text.len();
+                    let inner_text = &inner_text[1..inner_len-1];
+
+                    let tokens = match lex(inner_text) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            return JsValue::NULL;
+                        }
+                    };
+
+                    let tree = match ParseTree::new(&tokens) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            return JsValue::NULL;
+                        }
+                    };
+                    */
+
+                    let tree = match self.graphs.get(&fn_name) {
+                        Some(v) => v,
+                        None => {
+                            return JsValue::NULL;
+                        }
+                    };
+
+                    let mut points: Vec<[f64; 2]> = Vec::new();
+                    let mut x: f64 = -10.0;
+
+                    while x <= 10.0 {
+                        let y = match differentiate(tree, x, &self.vars) {
+                            Some(v) => v,
+                            None => {
+                                return JsValue::NULL;
+                            }
+                        };
+
+                        points.push([x, y]);
+
+                        x += 0.1;
+                    }
+
+                    return serde_wasm_bindgen::to_value(&
+                        EvaluatorResponse::Graph { points }
+                    ).unwrap();
+                }
+
+                let value = match evaluate_value_if_valid(&input, &self.vars) {
+                    Some(v) => v,
+                    None => {
+                        return JsValue::NULL;
+                    }
+                };
+
+                serde_wasm_bindgen::to_value(
+                    &EvaluatorResponse::Value {
+                        value,
+                        var_name: None
+                    }
+                )
+                    .expect("failed to serialize")
+                
             },
 
             1 => {
-                let parts: Vec<&str> = input.split('=').collect();
+                // [ function def, function ]
+                let parts: Vec<String> = input.split('=')
+                    .map(|x| x.chars().filter(|y| *y != ' ').collect())
+                    .collect();
 
-                if parts[0].trim().len() != 1 {
-                    return None;
+                let fn_re = Regex::new(r"^[a-zA-Z]\(x\)$")
+                    .expect("regex failed");
+
+                if fn_re.is_match(&parts[0]) {
+                    let fn_name = parts[0]
+                        .chars()
+                        .nth(0)
+                        .unwrap();
+
+                    let tokens = match lex(&parts[1]) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            return JsValue::NULL;
+                        }
+                    };
+
+                    let tree = match ParseTree::new(&tokens) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            return JsValue::NULL;
+                        }
+                    };
+
+                    let mut points: Vec<[f64; 2]> = Vec::new();
+
+                    let mut x: f64 = -10.0;
+
+                    while x <= 10.0 {
+                        let y = match tree.evaluate(Some(x), &self.vars) {
+                            Ok(v) => v,
+                            Err(_) => {
+                                return JsValue::NULL;
+                            }
+                        };
+
+                        points.push([x, y]);
+
+                        x += 0.1;
+                    }
+
+                    self.graphs.insert(fn_name, tree);
+
+                    serde_wasm_bindgen::to_value(
+                        &EvaluatorResponse::Graph { points }
+                    ).unwrap()
+
+                } else {
+                    let var_name = parts[0]
+                        .chars()
+                        .nth(0)
+                        .unwrap();
+
+                    let value = match evaluate_value_if_valid(&parts[1], &self.vars) {
+                        Some(v) => v,
+                        None => {
+                            return JsValue::NULL;
+                        }
+                    };
+
+                    self.vars.insert(var_name, value);
+
+                    serde_wasm_bindgen::to_value(
+                        &EvaluatorResponse::Value {
+                            value,
+                            var_name: Some(var_name.to_string())
+                        }
+                    ).unwrap()
                 }
-
-                let var: char = parts[0].trim().chars().next().unwrap();
-
-                match evaluate_string_if_valid(parts[1], &self.vars) {
-                    Some(v) => {
-
-                        self.vars.insert(var, v);
-
-                        /*
-                        Some(EvaluatorResponse {
-                            value: v,
-                            variable: Some(var)
-                        })
-                        */
-
-                        Some(v)
-                    },
-
-                    None => None
-                }
             }
 
-            _ => None
+            _ => JsValue::NULL
         }
     }
-}
-
-/*
-#[wasm_bindgen]
-pub fn evaluate_graph(input: &str) -> JsValue {
-
-    let mut points: Vec<[f64; 2]> = Vec::new();
-
-    let mut i: f64 = -10.0;
-
-    let mut vars: HashMap<char, f64> = HashMap::new();
-
-    while i <= 10.0 {
-        let x = i;
-
-        vars.insert('x', x);
-
-        log(format!("outer vars: {:?}", vars).as_str());
-
-        log("inner loop");
-
-        match evaluate_string_if_valid(input, &vars) {
-
-
-            Some(y) => {
-                points.push([x, y]);
-            },
-            None => {
-                return serde_wasm_bindgen::to_value(&()).unwrap();
-            }
-        }
-
-        i += 0.1;
-    }
-
-    let out = EvaluateResponse::Graph(points);
-    serde_wasm_bindgen::to_value(&out).unwrap()
-}
-
-#[derive(Serialize, Deserialize)]
-//#[serde(tag = "type")]
-enum EvaluateResponse {
-    Value(f64),
-    Graph(Vec<[f64; 2]>)
-}
-*/
-
-#[wasm_bindgen]
-pub fn evaluate_graph(input: &str) -> JsValue {
-    let tokens = match lex(input) {
-        Ok(v) => {
-            v
-        },
-
-        Err(_) => {
-            log("Lex failed");
-            return serde_wasm_bindgen::to_value(&()).unwrap();
-        }
-    };
-
-    log(format!("{:?}", tokens).as_str());
-
-    let tree = match ParseTree::new(&tokens) {
-        Ok(v) => v,
-        Err(_) => {
-            log("parse failed");
-            return serde_wasm_bindgen::to_value(&()).unwrap();
-        }
-    };
-
-    let mut i: f64 = -10.0;
-    let mut vars: HashMap<char, f64> = HashMap::new();
-
-    let mut out: Vec<[f64; 2]> = Vec::new();
-    while i <= 10.0 {
-        vars.insert('x', i);
-
-        let value = match tree.evaluate(&vars) {
-            Ok(v) => v,
-            Err(_) => {
-                log("evaluate failed");
-                return serde_wasm_bindgen::to_value(&()).unwrap();
-            }
-        };
-
-        out.push([i, value]);
-        i += 0.01;
-    }
-
-    serde_wasm_bindgen::to_value(&out).unwrap()
-}
-
-pub fn estimate_intercepts(a: &[LexerToken], b: &[LexerToken]) -> Option<f64> {
-    let top_node = TreeNode {
-        token_type: LexerTokenType::Sub,
-        function_args: Vec::new(),
-        left: Some(Box::new(TreeNode::new_from_tokens(a).unwrap())),
-        right: Some(Box::new(TreeNode::new_from_tokens(b).unwrap())),
-    };
-
-    let tree = ParseTree {
-        inner_tree: Some(Box::new(top_node))
-    };
-
-    let resolution: f64 = 0.0001;
-    let mut x = -10.0;
-
-    let mut lowest_val: Option<f64> = None;
-    let mut lowest_x: Option<f64> = None;
-
-    let mut vars: HashMap<char, f64> = HashMap::new();
-
-    while x <= 10.0 {
-        vars.insert('x', x);
-
-        let current_val = match tree.evaluate(&vars) {
-            Ok(v) => v,
-
-            Err(_) => {
-                return None;
-            }
-        };
-
-        println!("{}", current_val);
-
-        if current_val == 0.0 {
-            println!("found exact intersect");
-            return Some(current_val);
-        }
-
-        match lowest_val {
-            Some(lv) => {
-                if current_val.abs() < lv {
-                    lowest_val = Some(current_val.abs());
-                    lowest_x = Some(x);
-                }
-            },
-            None => {
-                lowest_val = Some(current_val.abs());
-                lowest_x = Some(x);
-            }
-        }
-
-        x += resolution;
-    }
-
-    lowest_x
 }

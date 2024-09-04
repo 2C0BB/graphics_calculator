@@ -2,11 +2,10 @@ import { useEffect, useState } from "react";
 
 import { greet, evaluate_string } from "./pkg/wasm_graph_calc.js";
 
-
 import * as d3 from "d3";
 import { evaluate_graph } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
 
-function Graph({equations, setEquations, wasmLoaded}: {equations: string[], setEquations: any, wasmLoaded: boolean}) {
+function Graph({graphs, wasmLoaded}: {graphs: any[], wasmLoaded: boolean}) {
 	let lineGen = d3.line()
 		.curve(d3.curveCardinal);
 		//.curve(d3.curveLinear)
@@ -57,16 +56,10 @@ function Graph({equations, setEquations, wasmLoaded}: {equations: string[], setE
 			return;
 		}
 
-		equations.forEach(eq => {
-			let values = evaluate_graph(eq);
-
-			if (!values) {
-				return;
-			}
-
+		graphs.forEach(g => {
 			let adjusted_values: number[][] = [];
 
-			values.forEach((point: number[]) => {
+			g.forEach((point: number[]) => {
 				let x = point[0];
 				let y = point[1];
 
@@ -95,7 +88,7 @@ function Graph({equations, setEquations, wasmLoaded}: {equations: string[], setE
 					.attr("stroke-width", 1.5);	
 		});
 
-	}, [equations, wasmLoaded]);
+	}, [graphs, wasmLoaded]);
 	
 	return (
 		<>

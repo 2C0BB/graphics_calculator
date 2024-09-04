@@ -6,7 +6,7 @@ import './App.css'
 import EquationInput from './EquationInput'
 import Graph from './Graph';
 
-import init, { Evaluator, EvaluatorResponse, setup } from "./wasm-graph-calc/pkg/wasm_graph_calc.js"
+import init, { Evaluator, setup } from "./wasm-graph-calc/pkg/wasm_graph_calc.js"
 
 function App() {
 
@@ -27,10 +27,13 @@ function App() {
 		"",
 	]);
 
-	const [answers, setAnswers] = useState<(undefined | number)[]>([
-		undefined
+	const [answers, setAnswers] = useState<any[]>([
+		null
 	]);
 
+	const [graphs, setGraphs] = useState<any[]>([]);
+
+	// update answers and graphs when equations change
 	useEffect(() => {
 
 		if (!wasmLoaded) {
@@ -46,13 +49,30 @@ function App() {
 		let evaluator = new Evaluator();
 		let data = [...equations];
 
-		setAnswers(data.map(eq => {
-			return evaluator.evaluate(eq);
-		}));
+		let new_answers: any[] = [];
+		let new_graphs: any[] = [];
 
+		data.forEach(eq => {
+			let e = evaluator.evaluate(eq);
+
+			if (!e) {
+				new_answers.push(undefined);
+			} else if (e.type == "Graph") {
+				new_graphs.push(e.points);
+				new_answers.push(undefined);
+			} else {
+				new_answers.push({value: e.value, var_name: e.var_name});
+			}
+		});
+
+		console.log(new_answers);
+		console.log(new_graphs);
+
+		setAnswers(new_answers);
+		setGraphs(new_graphs);
+
+		// to avoid memory leaks as wasm does not automatically free structs
 		evaluator.free();
-
-		//console.log(answers);
 
 	}, [equations, wasmLoaded]);
 
@@ -70,8 +90,8 @@ function App() {
 		</div>
 		<div className="split right">
 			<Graph
-				equations={equations}
-				setEquations={setEquations}
+
+				graphs={graphs}
 
 				wasmLoaded={wasmLoaded}
 			/>
