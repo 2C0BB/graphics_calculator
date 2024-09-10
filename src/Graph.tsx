@@ -6,17 +6,29 @@ import * as d3 from "d3";
 import { evaluate_graph } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
 
 function Graph({graphs, wasmLoaded}: {graphs: any[], wasmLoaded: boolean}) {
+
+	const width = 885;
+	const height = 580;
+
+	const margin_width = 10;
+	const margin_height = 10;
+
+	const inner_width = width - 2 * margin_width;
+	const inner_height = height - 2 * margin_height;
+
+	const units_width = 10
+	const units_height = 15
+
 	let lineGen = d3.line()
 		.curve(d3.curveCardinal);
 		//.curve(d3.curveLinear)
-	
 	let xScale = d3.scaleLinear()
-		.domain([-10, 10])
-		.range([0, 480])
+		.domain([-units_width, units_width])
+		.range([0, inner_width])
 
 	let yScale = d3.scaleLinear()
-		.domain([-10, 10])
-		.range([480, 0])
+		.domain([-units_height, units_height])
+		.range([inner_height, 0])
 
 	let points = [];
 
@@ -82,7 +94,7 @@ function Graph({graphs, wasmLoaded}: {graphs: any[], wasmLoaded: boolean}) {
 				.append("path")
 					.attr('d', lineGen(adjusted_values))
 					.attr('class', 'plotted_line')
-					.attr('transform', 'translate(10, 10)')
+					.attr('transform', `translate(${margin_width}, ${margin_height})`)
 					.attr('fill', 'none')
 					.attr("stroke", "black")
 					.attr("stroke-width", 1.5);	
@@ -92,9 +104,9 @@ function Graph({graphs, wasmLoaded}: {graphs: any[], wasmLoaded: boolean}) {
 	
 	return (
 		<>
-			<svg id="topSvg" width="500" height="500">
-				<g id="x-axis" transform="translate(10, 250)"></g>
-				<g id="y-axis" transform="translate(250, 10)"></g>
+			<svg id="topSvg" width={width} height={height}>
+				<g id="x-axis" transform={`translate(${margin_width}, ${height / 2})`}></g>
+				<g id="y-axis" transform={`translate(${width / 2}, ${margin_height})`}></g>
 
 				{/* <path className="plotted_line" transform="translate(10, 10)"></path> */}
 			</svg>

@@ -60,7 +60,7 @@ pub struct LexerToken {
     bracket_depth: u32
 }
 
-const FUNCTIONS: [&str; 5] = ["ln", "sin", "cos", "tan", "sqrt"];
+const FUNCTIONS: [&str; 6] = ["ln", "log", "sin", "cos", "tan", "sqrt"];
 
 fn string_to_token(s: &str) -> Option<LexerTokenType> {
 
@@ -401,7 +401,7 @@ fn find_next_op(items: &[LexerToken]) -> Option<usize> {
 
 type TreeLink = Option<Box<TreeNode>>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TreeNode {
     token_type: LexerTokenType,
     function_args: Vec<TreeNode>,
@@ -517,6 +517,19 @@ impl TreeNode {
                 return Ok(self.function_args[0].evaluate(x, vars)?.ln());
             }
 
+            if name == "log" {
+                assert!(self.function_args.len() == 1 || self.function_args.len() == 2);
+                
+                let base = match self.function_args.len() {
+                    1 => 10.0,
+                    2 => self.function_args[1].evaluate(x, vars)?,
+
+                    _ => unreachable!()
+                };
+
+                return Ok(self.function_args[0].evaluate(x, vars)?.log(base));
+            }
+
             if name == "sin" {
                 assert_eq!(self.function_args.len(), 1);
 
@@ -564,7 +577,7 @@ impl TreeNode {
 
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParseTree {
     inner_tree: TreeLink
 }
@@ -651,24 +664,17 @@ fn evaluate_value_if_valid(
 
 }
 
-fn differentiate(function: &ParseTree, x: f64, vars: &HashMap<char, f64>) -> Option<f64> {
+fn differentiate<F>(f: F, amount: usize) -> Box<dyn Fn(f64) -> f64>
+    where F: Fn(f64) -> f64 + 'static
+{
+    let mut out: Box<dyn Fn(f64) -> f64> = Box::new(f);
+
     let h = 0.0001;
-
-    let f_xh = match function.evaluate(Some(x + h), vars) {
-        Ok(v) => v,
-        Err(_) => {
-            return None;
-        }
-    };
-
-    let f_x = match function.evaluate(Some(x), vars) {
-        Ok(v) => v,
-        Err(_) => {
-            return None;
-        }
-    };
-
-    Some((f_xh - f_x) / h)
+    for _ in 0..amount {
+        out = Box::new(move |x: f64| (out(x+h) - out(x)) / h);
+    }
+    
+    out
 }
 
 /*
@@ -736,11 +742,14 @@ impl Evaluator {
         match equals_count {
             0 => {
 
-                let re = Regex::new(r"^[a-zA-Z][']\(x\)$").unwrap();
+                let re = Regex::new(r"^[a-zA-Z][']+\(x\)$").unwrap();
 
                 if re.is_match(&input) {
 
                     let fn_name = input.chars().nth(0).unwrap();
+                    let differentiation_count = input.chars()
+                        .filter(|c| *c == '\'')
+                        .count();
 
                     /*
                     let brackets_re = Regex::new(r"/\(.*\)/gm").unwrap();
@@ -777,14 +786,18 @@ impl Evaluator {
                     let mut points: Vec<[f64; 2]> = Vec::new();
                     let mut x: f64 = -10.0;
 
-                    while x <= 10.0 {
-                        let y = match differentiate(tree, x, &self.vars) {
-                            Some(v) => v,
-                            None => {
-                                return JsValue::NULL;
-                            }
-                        };
 
+                    // TODO : TRY USING RC REFCELL TO AVOID CLONES
+                    // this is done as differentiate requires static closure
+                    let cloned_tree = tree.clone();
+                    let cloned_vars = self.vars.clone();
+
+                    // TODO : FIX THIS SO IT DOESN'T CRASH IF f(x) FAILS TO EVALUATE
+                    let f = move |x: f64| cloned_tree.evaluate(Some(x), &cloned_vars).unwrap();
+                    let f_prime = differentiate(f, differentiation_count);
+
+                    while x <= 10.0 {
+                        let y = f_prime(x);
                         points.push([x, y]);
 
                         x += 0.1;
