@@ -38,11 +38,10 @@ pub enum LexerTokenType {
     Sub,
     Div,
     Mul,
-    Func(Vec<Vec<LexerToken>>, String),
+    Func(Vec<Vec<LexerToken>>, String), 
     X,
     Var(char),
     Num(f64),
-
     IndefiniteFunction(char)
 }
 
@@ -107,8 +106,6 @@ fn generate_function<T>(i: &mut T, function_name: String) -> Result<LexerTokenTy
     where T: Iterator<Item = char>
 {
 
-    println!("STARTED");
-
     let mut bracket_depth: u32 = 1;
 
     let mut args_sets: Vec<Vec<char>> = Vec::new();
@@ -149,6 +146,43 @@ fn generate_function<T>(i: &mut T, function_name: String) -> Result<LexerTokenTy
         panic!();
     }
 
+    // this is a bad solution, but integration will replace the first function with the relevant tree
+
+    // TODO: check argument amount in lexer instead of evaluator
+
+    let int_function_name: Option<char>;
+    if function_name == "int" {
+        // regex for function of x
+
+        if args_sets.len() != 3 {
+            return Err(LexError);
+        }
+
+        let first_argument: String = args_sets[0]
+            .iter()
+            .collect();
+
+        let re = Regex::new(r"^[a-zA-Z]\(x\)$").unwrap();
+        if re.is_match(&first_argument) {
+
+            let first_char = match first_argument.chars().next() {
+                Some(c) => c,
+                None => {
+                    return Err(LexError);
+                }
+            };
+
+            int_function_name = Some(first_char);
+            args_sets.remove(0);
+        } else {
+            int_function_name = None;
+        }
+    } else {
+        int_function_name = None;
+    }
+
+    println!("{:?}", int_function_name);
+
     let parsed_sets: Vec<Result<Vec<LexerToken>, LexError>> = args_sets.into_iter()
         .map(|set| set.iter().collect::<String>())
         .map(|set_string| {println!("SET: {}", set_string); lex(&set_string)})
@@ -158,9 +192,18 @@ fn generate_function<T>(i: &mut T, function_name: String) -> Result<LexerTokenTy
         return Err(LexError);
     }
 
-    let parsed_sets: Vec<Vec<LexerToken>> = parsed_sets.into_iter()
+    let mut parsed_sets: Vec<Vec<LexerToken>> = parsed_sets.into_iter()
         .map(|x| x.unwrap())
         .collect();
+
+    if let Some(fn_name) = int_function_name {
+        parsed_sets.insert(0, vec![
+            LexerToken {
+                token_type: LexerTokenType::IndefiniteFunction(fn_name),
+                bracket_depth
+            }
+        ]);
+    }
 
     Ok(LexerTokenType::Func(parsed_sets, function_name))
 }
@@ -427,28 +470,46 @@ impl std::fmt::Display for EvaluateError {
 impl std::error::Error for EvaluateError {}
 
 impl TreeNode {
-    fn new_from_tokens(items: &[LexerToken]) -> Result<TreeNode, ParseError>  {
+    fn new_from_tokens(items: &[LexerToken], graphs: &HashMap<char, ParseTree>) -> Result<TreeNode, ParseError>  {
         let next_op_pos = find_next_op(items);
 
         match next_op_pos {
             Some(pos) => {
-                let token_type = items[pos].token_type.clone();
-
-                if let LexerTokenType::Func(vars, _name) = &token_type {
-
+                let mut token_type = items[pos].token_type.clone();
+                if let LexerTokenType::Func(vars, _name) = &mut token_type {
                     assert_eq!(items.len(), 1);
 
+                    let int_fn_node: Option<TreeNode>;
+
+                    if let LexerTokenType::IndefiniteFunction(fn_int_name) = vars[0][0].token_type {
+                        int_fn_node = match graphs.get(&fn_int_name) {
+                            Some(int_fn) => Some(*int_fn.inner_tree.clone().unwrap()),
+                            
+                            None => {
+                                return Err(ParseError);
+                            }
+                        };
+
+                        vars.remove(0);
+                    } else {
+                        int_fn_node = None;
+                    }
+
                     let function_args: Vec<Result<TreeNode, ParseError>> = vars.iter()
-                        .map(|x| TreeNode::new_from_tokens(x))
+                        .map(|x| TreeNode::new_from_tokens(x, graphs))
                         .collect();
 
                     if function_args.iter().any(|x| x.is_err()) {
                         return Err(ParseError);
                     }
 
-                    let function_args: Vec<TreeNode> = function_args.into_iter()
+                    let mut function_args: Vec<TreeNode> = function_args.into_iter()
                         .map(|x| x.unwrap())
                         .collect();
+
+                    if let Some(inner_int_node) = int_fn_node {
+                        function_args.insert(0, inner_int_node);
+                    }
 
                     return Ok(TreeNode {
                         token_type: token_type.clone(),
@@ -460,11 +521,10 @@ impl TreeNode {
                 }
                 
                 let left_items = &items[0..pos];
-                let left_node = TreeNode::new_from_tokens(left_items)?;
+                let left_node = TreeNode::new_from_tokens(left_items, graphs)?;
 
                 let right_items = &items[pos+1..];
-                let right_node = TreeNode::new_from_tokens(right_items)?;
-
+                let right_node = TreeNode::new_from_tokens(right_items, graphs)?;
 
                 Ok(TreeNode { 
                     token_type,
@@ -611,9 +671,9 @@ impl std::fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 impl ParseTree {
-    pub fn new(lexed: &[LexerToken]) -> Result<ParseTree, ParseError> {
+    pub fn new(lexed: &[LexerToken], graphs: &HashMap<char, ParseTree>) -> Result<ParseTree, ParseError> {
         let inner_tree = Some(Box::new(
-            TreeNode::new_from_tokens(lexed)?
+            TreeNode::new_from_tokens(lexed, graphs)?
         ));
 
         Ok(ParseTree { inner_tree })
@@ -650,7 +710,8 @@ enum EvaluatorResponse {
 
 fn evaluate_value_if_valid(
     input: &str,
-    vars: &HashMap<char, f64>
+    vars: &HashMap<char, f64>,
+    graphs: &HashMap<char, ParseTree>
 ) -> Option<f64> {
 
     let tokens = match lex(input) {
@@ -661,7 +722,7 @@ fn evaluate_value_if_valid(
         }
     };
 
-    let tree = match ParseTree::new(&tokens) {
+    let tree = match ParseTree::new(&tokens, graphs) {
         Ok(v) => v,
 
         Err(_) => {
@@ -755,31 +816,6 @@ impl Evaluator {
                         .filter(|c| *c == '\'')
                         .count();
 
-                    /*
-                    let brackets_re = Regex::new(r"/\(.*\)/gm").unwrap();
-                    log(&input);
-                    let inner_text = brackets_re.find(&input)
-                        .unwrap()
-                        .as_str();
-
-                    let inner_len = inner_text.len();
-                    let inner_text = &inner_text[1..inner_len-1];
-
-                    let tokens = match lex(inner_text) {
-                        Ok(v) => v,
-                        Err(_) => {
-                            return JsValue::NULL;
-                        }
-                    };
-
-                    let tree = match ParseTree::new(&tokens) {
-                        Ok(v) => v,
-                        Err(_) => {
-                            return JsValue::NULL;
-                        }
-                    };
-                    */
-
                     let tree = match self.graphs.get(&fn_name) {
                         Some(v) => v,
                         None => {
@@ -812,7 +848,7 @@ impl Evaluator {
                     ).unwrap();
                 }
 
-                let value = match evaluate_value_if_valid(&input, &self.vars) {
+                let value = match evaluate_value_if_valid(&input, &self.vars, &self.graphs) {
                     Some(v) => v,
                     None => {
                         return JsValue::NULL;
@@ -851,7 +887,7 @@ impl Evaluator {
                         }
                     };
 
-                    let tree = match ParseTree::new(&tokens) {
+                    let tree = match ParseTree::new(&tokens, &self.graphs) {
                         Ok(v) => v,
                         Err(_) => {
                             return JsValue::NULL;
@@ -887,7 +923,7 @@ impl Evaluator {
                         .nth(0)
                         .unwrap();
 
-                    let value = match evaluate_value_if_valid(&parts[1], &self.vars) {
+                    let value = match evaluate_value_if_valid(&parts[1], &self.vars, &self.graphs) {
                         Some(v) => v,
                         None => {
                             return JsValue::NULL;
