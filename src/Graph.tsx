@@ -21,7 +21,7 @@ function Graph({graphs, wasmLoaded}: {graphs: any[], wasmLoaded: boolean}) {
 
 	let lineGen = d3.line()
 		.curve(d3.curveCardinal);
-		//.curve(d3.curveLinear)
+		// .curve(d3.curveLinear)
 	let xScale = d3.scaleLinear()
 		.domain([-units_width, units_width])
 		.range([0, inner_width])
@@ -78,8 +78,8 @@ function Graph({graphs, wasmLoaded}: {graphs: any[], wasmLoaded: boolean}) {
 				let scaled_x = xScale(x);
 				let scaled_y = yScale(y);
 
-				let x_valid = x >= -10 && x <= 10;
-				let y_valid = y >= -10 && y <= 10;
+				let x_valid = x >= -units_width && x <= units_width;
+				let y_valid = y >= -units_height && y <= units_height;
 
 				if (x_valid && y_valid) {
 					adjusted_values.push([scaled_x, scaled_y]);

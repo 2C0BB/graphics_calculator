@@ -6,6 +6,9 @@ use regex::Regex;
 
 mod utils;
 
+mod calculus;
+use calculus::*;
+
 #[wasm_bindgen]
 pub fn setup() {
     utils::set_panic_hook();
@@ -38,7 +41,9 @@ pub enum LexerTokenType {
     Func(Vec<Vec<LexerToken>>, String),
     X,
     Var(char),
-    Num(f64)
+    Num(f64),
+
+    IndefiniteFunction(char)
 }
 
 fn value_operator(input: &LexerTokenType) -> u32 {
@@ -49,7 +54,7 @@ fn value_operator(input: &LexerTokenType) -> u32 {
         LexerTokenType::Add => 2,
         LexerTokenType::Sub => 2,
 
-        LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::X => panic!()
+        LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::X | LexerTokenType::IndefiniteFunction(_) => panic!()
     }
 }
 
@@ -60,7 +65,7 @@ pub struct LexerToken {
     bracket_depth: u32
 }
 
-const FUNCTIONS: [&str; 6] = ["ln", "log", "sin", "cos", "tan", "sqrt"];
+const FUNCTIONS: [&str; 7] = ["ln", "log", "sin", "cos", "tan", "sqrt", "int"];
 
 fn string_to_token(s: &str) -> Option<LexerTokenType> {
 
@@ -551,6 +556,18 @@ impl TreeNode {
                 return Ok(self.function_args[0].evaluate(x, vars)?.sqrt());
             }
 
+            if name == "int" {
+                assert_eq!(self.function_args.len(), 3);
+
+                let f = |x: f64| self.function_args[0].evaluate(Some(x), &vars).unwrap();
+
+                return Ok(integrate(f, 
+                        self.function_args[1].evaluate(x, &vars)?, 
+                        self.function_args[2].evaluate(x, &vars)?, 
+                        10000
+                ));
+            }
+
             unimplemented!()
         }
 
@@ -571,7 +588,7 @@ impl TreeNode {
             LexerTokenType::Mul => left_val * right_val,
             LexerTokenType::Div => left_val / right_val,
 
-            LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::Func(..) | LexerTokenType::X => unreachable!()
+            LexerTokenType::Num(_) | LexerTokenType::Var(_) | LexerTokenType::Func(..) | LexerTokenType::X | LexerTokenType::IndefiniteFunction(_) => unreachable!()
         })
     }
 
@@ -662,19 +679,6 @@ fn evaluate_value_if_valid(
 
     Some(value)
 
-}
-
-fn differentiate<F>(f: F, amount: usize) -> Box<dyn Fn(f64) -> f64>
-    where F: Fn(f64) -> f64 + 'static
-{
-    let mut out: Box<dyn Fn(f64) -> f64> = Box::new(f);
-
-    let h = 0.0001;
-    for _ in 0..amount {
-        out = Box::new(move |x: f64| (out(x+h) - out(x)) / h);
-    }
-    
-    out
 }
 
 /*
