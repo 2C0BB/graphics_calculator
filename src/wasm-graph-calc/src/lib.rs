@@ -113,7 +113,7 @@ fn generate_function<T>(i: &mut T, function_name: String) -> Result<LexerTokenTy
 
     let mut closing_found: bool = false;
 
-    while let Some(c) = i.next() {
+    for c in i {
 
         println!("C: {}", c);
 
@@ -481,6 +481,10 @@ impl TreeNode {
 
                     let int_fn_node: Option<TreeNode>;
 
+                    if vars[0].len() != 1 {
+                        return Err(ParseError);
+                    }
+
                     if let LexerTokenType::IndefiniteFunction(fn_int_name) = vars[0][0].token_type {
                         int_fn_node = match graphs.get(&fn_int_name) {
                             Some(int_fn) => Some(*int_fn.inner_tree.clone().unwrap()),
@@ -619,11 +623,11 @@ impl TreeNode {
             if name == "int" {
                 assert_eq!(self.function_args.len(), 3);
 
-                let f = |x: f64| self.function_args[0].evaluate(Some(x), &vars).unwrap();
+                let f = |x: f64| self.function_args[0].evaluate(Some(x), vars).unwrap();
 
                 return Ok(integrate(f, 
-                        self.function_args[1].evaluate(x, &vars)?, 
-                        self.function_args[2].evaluate(x, &vars)?, 
+                        self.function_args[1].evaluate(x, vars)?, 
+                        self.function_args[2].evaluate(x, vars)?, 
                         10000
                 ));
             }
@@ -943,5 +947,11 @@ impl Evaluator {
 
             _ => JsValue::NULL
         }
+    }
+}
+
+impl Default for Evaluator {
+    fn default() -> Self {
+        Evaluator::new()
     }
 }
