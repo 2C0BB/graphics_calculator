@@ -78,23 +78,30 @@ function App() {
 
   return (
 	<>
-		<div className="split left">
-			<EquationInput 
-				equations={equations}
-				setEquations={setEquations}
 
-				answers={answers}
-
-				wasmLoaded={wasmLoaded}
-			/>
+		<div>
+			<div>a</div>
 		</div>
-		<div className="split right">
-			<Graph
 
-				graphs={graphs}
+		<div className="middleContent">
+			<div className="split left">
+				<EquationInput 
+					equations={equations}
+					setEquations={setEquations}
 
-				wasmLoaded={wasmLoaded}
-			/>
+					answers={answers}
+
+					wasmLoaded={wasmLoaded}
+				/>
+			</div>
+			<div className="split right">
+				<Graph
+
+					graphs={graphs}
+
+					wasmLoaded={wasmLoaded}
+				/>
+			</div>
 		</div>
     </>
   )

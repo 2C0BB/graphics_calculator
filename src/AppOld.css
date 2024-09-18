@@ -47,27 +47,15 @@
 
 } */
 
-#root {
-	display: flex;
-	flex-direction: column;
-}
-
-.middleContent {
-	display: flex;
-	flex-direction: row;
-}
-
 .equation {
 	width: 100%;
 	/* display: flex;
 	flex-direction: row; */
 	/*align-items: center;*/
 
-
-	
-
 	min-height: 10vh;
 	margin-bottom: 1vh;
+	position: relative;
 }
 
 .equation * {
@@ -76,7 +64,7 @@
 
 .equation input{
 
-	/* position: absolute; */
+	position: absolute;
 
 	z-index: 0;
 
@@ -91,19 +79,20 @@
 
 	left: 0;
 	width: 100%;
+	/* width: 80%; */
 
 	padding-left: 1em;
 }
 
 .remove {
 
-	position: absolute;
+	/* position: absolute; */
 
 	color: black;
 	background-color: gray;
 
-	top: 0;
-	right: 0;
+	/* top: 0; */
+	/* right: 0; */
 	z-index: 1;
 	width: 2em;
 	/* height: 100%; */
@@ -114,7 +103,7 @@
 }
 
 .differentiate p {
-	position: absolute;
+	/* position: absolute; */
 
 	color: black;
 
@@ -149,32 +138,43 @@
 	color: black;
 }
 
+.mainContent {
+	height: 90%;
+}
+
+.topBar {
+	height: 5%;
+	max-height: 5%;
+	justify-content: end;
+}
+
+.topAndContent {
+	display: flex;
+	flex-direction: column;
+}
+
 .split {
 	height: 100%;
-	display: flex;
-	align-items: stretch;
+	/* position: fixed; */
+	/* top: 0; */
 
 	/* border: 5px white; */
 }
 
-.split * {
-	position: relative;
-}
-
 .left {
-	align-items: stretch;
+	left: 0;
+	min-width: 30%;
 	display: flex;
 	flex-direction: column;
 	justify-content: top;
 	align-items: center;
 
-	flex: 1;
-	flex-grow: 1;
-
 	background-color: gray;
 }
 
 .right {
+	right: 0;
+	width: 70%;
 
 	background-color: white;
 }
