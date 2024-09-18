@@ -5,10 +5,10 @@ import { greet, evaluate_string } from "./pkg/wasm_graph_calc.js";
 import * as d3 from "d3";
 import { evaluate_graph } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
 
-function Graph({graphs, wasmLoaded}: {graphs: any[], wasmLoaded: boolean}) {
+function Graph({graphs}: {graphs: any[]}) {
 
-	const width = 885;
-	const height = 580;
+	const width = 580;
+	const height = 500;
 
 	const margin_width = 10;
 	const margin_height = 10;
@@ -107,8 +107,6 @@ function Graph({graphs, wasmLoaded}: {graphs: any[], wasmLoaded: boolean}) {
 			<svg id="topSvg" width={width} height={height}>
 				<g id="x-axis" transform={`translate(${margin_width}, ${height / 2})`}></g>
 				<g id="y-axis" transform={`translate(${width / 2}, ${margin_height})`}></g>
-
-				{/* <path className="plotted_line" transform="translate(10, 10)"></path> */}
 			</svg>
 		</>
 	);

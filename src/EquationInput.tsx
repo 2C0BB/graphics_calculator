@@ -5,14 +5,10 @@ function EquationInput({
 		equations,
 		setEquations,
 		answers,
-
-		wasmLoaded
 	}: {
 		equations: any, 
 		setEquations: any,
 		answers: any,
-
-		wasmLoaded: boolean
 	}) {
 
 	function handleEquationChange(

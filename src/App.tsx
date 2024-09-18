@@ -5,6 +5,7 @@ import './App.css'
 
 import EquationInput from './EquationInput'
 import Graph from './Graph';
+import Intercepts from './Intercepts'
 
 import init, { Evaluator, setup } from "./wasm-graph-calc/pkg/wasm_graph_calc.js"
 
@@ -32,6 +33,9 @@ function App() {
 	]);
 
 	const [graphs, setGraphs] = useState<any[]>([]);
+
+	const [eq1, setEq1] = useState("");
+	const [eq2, setEq2] = useState("");
 
 	// update answers and graphs when equations change
 	useEffect(() => {
@@ -65,8 +69,7 @@ function App() {
 			}
 		});
 
-		console.log(new_answers);
-		console.log(new_graphs);
+		console.log(evaluator.find_intercepts(eq1, eq2));
 
 		setAnswers(new_answers);
 		setGraphs(new_graphs);
@@ -74,13 +77,14 @@ function App() {
 		// to avoid memory leaks as wasm does not automatically free structs
 		evaluator.free();
 
-	}, [equations, wasmLoaded]);
+	}, [equations, eq1, eq2, wasmLoaded]);
 
   return (
 	<>
 
-		<div>
-			<div>a</div>
+		<div className="topBar">
+			<div>Save</div>
+			<div>Load</div>
 		</div>
 
 		<div className="middleContent">
@@ -90,16 +94,21 @@ function App() {
 					setEquations={setEquations}
 
 					answers={answers}
-
-					wasmLoaded={wasmLoaded}
 				/>
 			</div>
 			<div className="split right">
 				<Graph
 
 					graphs={graphs}
+				/>
+			</div>
+			<div className="intercepts">
+				<Intercepts 
+					eq1={eq1}
+					setEq1={setEq1}
 
-					wasmLoaded={wasmLoaded}
+					eq2={eq2}
+					setEq2={setEq2}
 				/>
 			</div>
 		</div>

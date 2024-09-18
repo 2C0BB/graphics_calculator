@@ -1,4 +1,4 @@
-pub fn find_roots(f: F, start: f64, stop: f64, step: f64, epsilon: f64) -> Vec<T> 
+pub fn find_roots<F>(f: F, start: f64, stop: f64, step: f64, epsilon: f64) -> Vec<f64> 
 where
     F: Fn(f64) -> f64
 {
@@ -8,7 +8,7 @@ where
         if f(current).abs() < epsilon {
             ret.push(current);
         }
-        current = current + step;
+        current += step;
     }
     ret
 }

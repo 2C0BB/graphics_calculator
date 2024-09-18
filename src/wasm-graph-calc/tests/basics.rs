@@ -1,4 +1,6 @@
 use wasm_graph_calc::*;
+use wasm_graph_calc::roots::find_roots;
+use std::collections::HashMap;
 
 /*
 #[test]
@@ -25,7 +27,25 @@ fn numba2() {
 
 #[test]
 fn integration() {
-    let tokens = lex("int(f(x), 0, 2, 100)").unwrap();
+    let tokens = lex("int(f(x), 0, 2)").unwrap();
 
     println!("{:?}", tokens);
+}
+
+#[test]
+fn intercepts() {
+    let graphs: HashMap<char, ParseTree> = HashMap::new();
+    let vars: HashMap<char, f64> = HashMap::new();
+
+    let tokens1 = lex("x*x").unwrap();
+    let tree1  = ParseTree::new(&tokens1, &graphs).unwrap();
+
+
+    let tokens2 = lex("3*x").unwrap();
+    let tree2  = ParseTree::new(&tokens2, &graphs).unwrap();
+
+    let f = |x: f64| 
+        tree1.evaluate(Some(x), &vars).unwrap() - tree2.evaluate(Some(x), &vars).unwrap();
+
+    println!("{:?}", find_roots(f, 0.0, 20.0, 0.01, 0.00001));
 }

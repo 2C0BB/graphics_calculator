@@ -9,6 +9,9 @@ mod utils;
 mod calculus;
 use calculus::*;
 
+pub mod roots;
+use roots::*;
+
 #[wasm_bindgen]
 pub fn setup() {
     utils::set_panic_hook();
@@ -802,8 +805,28 @@ impl Evaluator {
         }
     }
 
-    pub fn evaluate(&mut self, input: String) -> JsValue {
+    pub fn find_intercepts(&self, fn1_name: char, fn2_name: char) -> Option<Vec<f64>> {
+        let fn1 = match self.graphs.get(&fn1_name) {
+            Some(v) => v,
+            None => {
+                return None
+            }
+        };
 
+        let fn2 = match self.graphs.get(&fn2_name) {
+            Some(v) => v,
+            None => {
+                return None
+            }
+        };
+
+        let f = |x: f64| 
+            fn1.evaluate(Some(x), &self.vars).unwrap() - fn2.evaluate(Some(x), &self.vars).unwrap();
+
+        Some(find_roots(f, 0.0, 20.0, 0.01, 0.00001))
+    }
+
+    pub fn evaluate(&mut self, input: String) -> JsValue {
         let equals_count: usize = input.chars()
             .filter(|x| *x == '=')
             .count();
