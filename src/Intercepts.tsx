@@ -5,13 +5,16 @@ function Intercepts ({
 	setEq1,
 
 	eq2,
-	setEq2
+	setEq2,
+
+	intercepts
 }: {
 	eq1: any,
 	setEq1: any,
 
 	eq2: any,
 	setEq2: any
+	intercepts: number[]
 }) {
 
 	return (
@@ -27,7 +30,11 @@ function Intercepts ({
 				onChange={(e) => setEq2(e.target.value)}
 			/>
 
-			<p></p>
+			{
+				intercepts.map((i: number, idx: number) => {
+					return <div key={idx}><p>{i}</p></div>;
+				})
+			}
 		</>
 	);
 }

@@ -64,10 +64,6 @@ function Graph({graphs}: {graphs: any[]}) {
 		d3.selectAll(".plotted_line")
 			.remove();
 
-		if (!wasmLoaded) {
-			return;
-		}
-
 		graphs.forEach(g => {
 			let adjusted_values: number[][] = [];
 
@@ -100,7 +96,7 @@ function Graph({graphs}: {graphs: any[]}) {
 					.attr("stroke-width", 1.5);	
 		});
 
-	}, [graphs, wasmLoaded]);
+	}, [graphs]);
 	
 	return (
 		<>

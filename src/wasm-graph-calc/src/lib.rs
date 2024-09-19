@@ -823,7 +823,7 @@ impl Evaluator {
         let f = |x: f64| 
             fn1.evaluate(Some(x), &self.vars).unwrap() - fn2.evaluate(Some(x), &self.vars).unwrap();
 
-        Some(find_roots(f, 0.0, 20.0, 0.01, 0.00001))
+        Some(find_roots(f, 0.0, 20.0, 0.001, 0.001))
     }
 
     pub fn evaluate(&mut self, input: String) -> JsValue {

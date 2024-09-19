@@ -34,6 +34,8 @@ function App() {
 
 	const [graphs, setGraphs] = useState<any[]>([]);
 
+	const [intercepts, setIntercepts] = useState<number[]>([]);
+
 	const [eq1, setEq1] = useState("");
 	const [eq2, setEq2] = useState("");
 
@@ -69,7 +71,14 @@ function App() {
 			}
 		});
 
-		console.log(evaluator.find_intercepts(eq1, eq2));
+		let intercept_list = evaluator.find_intercepts(eq1, eq2);
+		if (intercept_list && intercept_list.length > 0) {
+			setIntercepts([...intercept_list])
+			console.log("there are intercepts")
+		} else {
+			console.log("there are no intercepts")
+			setIntercepts([])
+		}
 
 		setAnswers(new_answers);
 		setGraphs(new_graphs);
@@ -97,10 +106,10 @@ function App() {
 				/>
 			</div>
 			<div className="split right">
-				<Graph
+				{/* <Graph
 
 					graphs={graphs}
-				/>
+				/> */}
 			</div>
 			<div className="intercepts">
 				<Intercepts 
@@ -109,6 +118,7 @@ function App() {
 
 					eq2={eq2}
 					setEq2={setEq2}
+					intercepts={intercepts}
 				/>
 			</div>
 		</div>
