@@ -711,7 +711,7 @@ enum EvaluatorResponse {
 
     Graph {
         points: Vec<[f64; 2]>,
-        //graph_name don't know if this is necessary yet, may be used for 
+        //graph_name: 
     }
 }
 
@@ -805,7 +805,20 @@ impl Evaluator {
         }
     }
 
-    pub fn find_intercepts(&self, fn1_name: char, fn2_name: char) -> Option<Vec<f64>> {
+    pub fn get_graph_names(&self) -> Vec<u8> {
+        self.graphs
+            .keys()
+            .map(|&x| x as u8)
+            .collect()
+    }
+
+    pub fn find_intercepts(
+        &self,
+        fn1_name: char,
+        fn2_name: char,
+        steps: f64,
+        epsilon: f64
+    ) -> Option<Vec<f64>> {
         let fn1 = match self.graphs.get(&fn1_name) {
             Some(v) => v,
             None => {
@@ -823,7 +836,22 @@ impl Evaluator {
         let f = |x: f64| 
             fn1.evaluate(Some(x), &self.vars).unwrap() - fn2.evaluate(Some(x), &self.vars).unwrap();
 
-        Some(find_roots(f, 0.0, 20.0, 0.001, 0.001))
+        let roots_xs = find_roots(f, -10.0, 10.0, 0.0001, 0.0001);
+
+        let average_ys: Vec<f64> = roots_xs.iter()
+            .map(|r| {
+                (fn1.evaluate(Some(*r), &self.vars).unwrap() +
+                fn2.evaluate(Some(*r), &self.vars).unwrap()) /
+                2.0
+            })
+            .collect();
+
+        let roots_points: Vec<f64> = roots_xs.into_iter()
+            .zip(average_ys)
+            .flat_map(|(x, y)| vec![x, y].into_iter())
+            .collect();
+            
+        Some(roots_points)
     }
 
     pub fn evaluate(&mut self, input: String) -> JsValue {

@@ -5,7 +5,7 @@ import { greet, evaluate_string } from "./pkg/wasm_graph_calc.js";
 import * as d3 from "d3";
 import { evaluate_graph } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
 
-function Graph({graphs}: {graphs: any[]}) {
+function Graph({graphs, intercepts}: {graphs: any[], intercepts: number[][]}) {
 
 	const width = 580;
 	const height = 500;
@@ -17,7 +17,7 @@ function Graph({graphs}: {graphs: any[]}) {
 	const inner_height = height - 2 * margin_height;
 
 	const units_width = 10
-	const units_height = 15
+	const units_height = 10
 
 	let lineGen = d3.line()
 		.curve(d3.curveCardinal);
@@ -40,6 +40,7 @@ function Graph({graphs}: {graphs: any[]}) {
 		points.push([xScale(x), yScale(y)]);
 	}
 
+	// setup axes
 	useEffect(() => {
 		let x_axis = d3.axisTop(xScale);
 		d3.select("#x-axis")
@@ -59,6 +60,7 @@ function Graph({graphs}: {graphs: any[]}) {
 
 	}, []);
 
+	// update lines when graphs change
 	useEffect(() => {
 
 		d3.selectAll(".plotted_line")
@@ -82,10 +84,6 @@ function Graph({graphs}: {graphs: any[]}) {
 				}
 			});
 
-			console.log(adjusted_values)
-
-
-
 			d3.select("#topSvg")
 				.append("path")
 					.attr('d', lineGen(adjusted_values))
@@ -97,6 +95,28 @@ function Graph({graphs}: {graphs: any[]}) {
 		});
 
 	}, [graphs]);
+
+	// update intercept points when intercepts change
+	useEffect(() => {
+		if (!intercepts) {
+			return;
+		}
+
+		d3.select('#topSvg')
+			.selectAll('circle')
+			.data(intercepts)
+			.join('circle')
+			.attr('cx', function(i) {
+				return xScale(i[0]) + margin_width;
+			})
+			.attr('cy', function(i) {
+				return yScale(i[1]) + margin_height;
+			})
+			.attr('r', 5)
+			.style('fill', 'orange');
+
+	}, [intercepts])
+
 	
 	return (
 		<>

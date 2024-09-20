@@ -167,7 +167,10 @@ html, body, #root, #root {
 	flex: 1 */
 }
 
-
+button {
+	border: none;
+	border-radius: 0;
+}
 
 canvas {
 	/* width: 100%;

@@ -37,7 +37,7 @@ fn intercepts() {
     let graphs: HashMap<char, ParseTree> = HashMap::new();
     let vars: HashMap<char, f64> = HashMap::new();
 
-    let tokens1 = lex("x*x").unwrap();
+    let tokens1 = lex("2*x + 1").unwrap();
     let tree1  = ParseTree::new(&tokens1, &graphs).unwrap();
 
 

@@ -8,6 +8,7 @@ import Graph from './Graph';
 import Intercepts from './Intercepts'
 
 import init, { Evaluator, setup } from "./wasm-graph-calc/pkg/wasm_graph_calc.js"
+import { evaluator_get_graph_names } from './wasm-graph-calc/pkg/wasm_graph_calc_bg.wasm.js';
 
 function App() {
 
@@ -34,10 +35,15 @@ function App() {
 
 	const [graphs, setGraphs] = useState<any[]>([]);
 
-	const [intercepts, setIntercepts] = useState<number[]>([]);
+	const [intercepts, setIntercepts] = useState<number[][]>([]);
+
+	const [steps, setSteps] = useState(0);
+	const [epsilon, setEpsilon] = useState(0);
 
 	const [eq1, setEq1] = useState("");
 	const [eq2, setEq2] = useState("");
+
+	const [graphNames, setGraphNames] = useState<String[]>([])
 
 	// update answers and graphs when equations change
 	useEffect(() => {
@@ -71,10 +77,20 @@ function App() {
 			}
 		});
 
-		let intercept_list = evaluator.find_intercepts(eq1, eq2);
-		if (intercept_list && intercept_list.length > 0) {
-			setIntercepts([...intercept_list])
-			console.log("there are intercepts")
+		let raw_intercept_list = evaluator.find_intercepts(eq1, eq2, steps, epsilon);
+
+		if (raw_intercept_list && raw_intercept_list.length > 0) {
+			let raw_intercept_list2 = [...raw_intercept_list];
+			let intercept_list: number[][] = [];
+
+			while (raw_intercept_list2.length > 0) {
+
+				intercept_list.push([raw_intercept_list2[0], raw_intercept_list2[1]]);
+				raw_intercept_list2.splice(0, 2);
+			}
+
+			setIntercepts(intercept_list);
+
 		} else {
 			console.log("there are no intercepts")
 			setIntercepts([])
@@ -83,17 +99,20 @@ function App() {
 		setAnswers(new_answers);
 		setGraphs(new_graphs);
 
+		let graph_name_list: String[] = [...evaluator.get_graph_names()].map((x) => String.fromCharCode(x));
+		setGraphNames(graph_name_list);
+
 		// to avoid memory leaks as wasm does not automatically free structs
 		evaluator.free();
 
-	}, [equations, eq1, eq2, wasmLoaded]);
+	}, [equations, eq1, eq2, wasmLoaded, steps, epsilon]);
 
   return (
 	<>
 
 		<div className="topBar">
-			<div>Save</div>
-			<div>Load</div>
+			<div><button>Save</button></div>
+			<div><button>Load</button></div>
 		</div>
 
 		<div className="middleContent">
@@ -106,10 +125,11 @@ function App() {
 				/>
 			</div>
 			<div className="split right">
-				{/* <Graph
+				<Graph
 
 					graphs={graphs}
-				/> */}
+					intercepts={intercepts}
+				/>
 			</div>
 			<div className="intercepts">
 				<Intercepts 
@@ -118,6 +138,13 @@ function App() {
 
 					eq2={eq2}
 					setEq2={setEq2}
+
+					steps={steps}
+					setSteps={setSteps}
+
+					epsilon={epsilon}
+					setEpsilon={setEpsilon}
+
 					intercepts={intercepts}
 				/>
 			</div>
