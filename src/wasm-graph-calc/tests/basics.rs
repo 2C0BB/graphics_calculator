@@ -27,11 +27,17 @@ fn numba2() {
 
 #[test]
 fn integration() {
-    let tokens = lex("int(f(x), 0, 2)").unwrap();
+    let tokens = lex("sin(2+1)").unwrap();
+
+    let a: HashMap<char, ParseTree> = HashMap::new();
+
+    let tree: ParseTree = ParseTree::new(&tokens, &a).unwrap();
 
     println!("{:?}", tokens);
+    println!("{:?}", tree);
 }
 
+/*
 #[test]
 fn intercepts() {
     let graphs: HashMap<char, ParseTree> = HashMap::new();
@@ -49,3 +55,4 @@ fn intercepts() {
 
     println!("{:?}", find_roots(f, 0.0, 20.0, 0.01, 0.00001));
 }
+*/

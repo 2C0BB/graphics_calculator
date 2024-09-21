@@ -484,11 +484,12 @@ impl TreeNode {
 
                     let int_fn_node: Option<TreeNode>;
 
-                    if vars[0].len() != 1 {
-                        return Err(ParseError);
-                    }
 
                     if let LexerTokenType::IndefiniteFunction(fn_int_name) = vars[0][0].token_type {
+                        if vars[0].len() != 1 {
+                            return Err(ParseError);
+                        }
+
                         int_fn_node = match graphs.get(&fn_int_name) {
                             Some(int_fn) => Some(*int_fn.inner_tree.clone().unwrap()),
                             
@@ -701,6 +702,8 @@ pub struct Evaluator {
     graphs: HashMap<char, ParseTree>,
 }
 
+
+
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum EvaluatorResponse {
@@ -816,8 +819,6 @@ impl Evaluator {
         &self,
         fn1_name: char,
         fn2_name: char,
-        steps: f64,
-        epsilon: f64
     ) -> Option<Vec<f64>> {
         let fn1 = match self.graphs.get(&fn1_name) {
             Some(v) => v,

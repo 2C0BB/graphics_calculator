@@ -37,9 +37,6 @@ function App() {
 
 	const [intercepts, setIntercepts] = useState<number[][]>([]);
 
-	const [steps, setSteps] = useState(0);
-	const [epsilon, setEpsilon] = useState(0);
-
 	const [eq1, setEq1] = useState("");
 	const [eq2, setEq2] = useState("");
 
@@ -77,7 +74,7 @@ function App() {
 			}
 		});
 
-		let raw_intercept_list = evaluator.find_intercepts(eq1, eq2, steps, epsilon);
+		let raw_intercept_list = evaluator.find_intercepts(eq1, eq2);
 
 		if (raw_intercept_list && raw_intercept_list.length > 0) {
 			let raw_intercept_list2 = [...raw_intercept_list];
@@ -105,7 +102,7 @@ function App() {
 		// to avoid memory leaks as wasm does not automatically free structs
 		evaluator.free();
 
-	}, [equations, eq1, eq2, wasmLoaded, steps, epsilon]);
+	}, [equations, eq1, eq2, wasmLoaded]);
 
   return (
 	<>
@@ -138,12 +135,6 @@ function App() {
 
 					eq2={eq2}
 					setEq2={setEq2}
-
-					steps={steps}
-					setSteps={setSteps}
-
-					epsilon={epsilon}
-					setEpsilon={setEpsilon}
 
 					intercepts={intercepts}
 				/>

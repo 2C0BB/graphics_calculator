@@ -33,7 +33,6 @@ function Graph({graphs, intercepts}: {graphs: any[], intercepts: number[][]}) {
 	let points = [];
 
 	for (let i = -10.0; i < 10.0; i += 0.1) {
-
 		let x = i;
 		let y = i;
 
@@ -42,6 +41,22 @@ function Graph({graphs, intercepts}: {graphs: any[], intercepts: number[][]}) {
 
 	// setup axes
 	useEffect(() => {
+
+		function handleZoom(e: any) {
+
+			console.log(e.transform);
+
+			d3.select('#svgMain')
+				.attr('transform', e.transform);
+		}
+	
+		let zoom = d3.zoom()
+			.on('zoom', handleZoom)
+	
+		d3.select('svg')
+			.call(zoom);
+
+
 		let x_axis = d3.axisTop(xScale);
 		d3.select("#x-axis")
 			.attr("class", "axisBlack")
@@ -59,6 +74,8 @@ function Graph({graphs, intercepts}: {graphs: any[], intercepts: number[][]}) {
 			.attr("stroke-width", 1.5);	
 
 	}, []);
+
+
 
 	// update lines when graphs change
 	useEffect(() => {
@@ -84,7 +101,7 @@ function Graph({graphs, intercepts}: {graphs: any[], intercepts: number[][]}) {
 				}
 			});
 
-			d3.select("#topSvg")
+			d3.select("#svgMain")
 				.append("path")
 					.attr('d', lineGen(adjusted_values))
 					.attr('class', 'plotted_line')
@@ -102,7 +119,7 @@ function Graph({graphs, intercepts}: {graphs: any[], intercepts: number[][]}) {
 			return;
 		}
 
-		d3.select('#topSvg')
+		d3.select('#svgMain')
 			.selectAll('circle')
 			.data(intercepts)
 			.join('circle')
@@ -118,11 +135,15 @@ function Graph({graphs, intercepts}: {graphs: any[], intercepts: number[][]}) {
 	}, [intercepts])
 
 	
+
+	
 	return (
 		<>
 			<svg id="topSvg" width={width} height={height}>
-				<g id="x-axis" transform={`translate(${margin_width}, ${height / 2})`}></g>
-				<g id="y-axis" transform={`translate(${width / 2}, ${margin_height})`}></g>
+				<g id="svgMain">
+					<g id="x-axis" transform={`translate(${margin_width}, ${height / 2})`}></g>
+					<g id="y-axis" transform={`translate(${width / 2}, ${margin_height})`}></g>
+				</g>
 			</svg>
 		</>
 	);
