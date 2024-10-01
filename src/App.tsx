@@ -6,6 +6,7 @@ import './App.css'
 import EquationInput from './EquationInput'
 import Graph from './Graph';
 import Intercepts from './Intercepts'
+import DomainRange from './DomainRange.js';
 
 import init, { Evaluator, setup } from "./wasm-graph-calc/pkg/wasm_graph_calc.js"
 import { evaluator_get_graph_names } from './wasm-graph-calc/pkg/wasm_graph_calc_bg.wasm.js';
@@ -39,6 +40,12 @@ function App() {
 
 	const [eq1, setEq1] = useState("");
 	const [eq2, setEq2] = useState("");
+
+	const [minX, setMinX] = useState(-10.0);
+	const [maxX, setMaxX] = useState(10.0);
+
+	const [minY, setMinY] = useState(-10.0);
+	const [maxY, setMaxY] = useState(10.0);
 
 	const [graphNames, setGraphNames] = useState<String[]>([])
 
@@ -137,6 +144,22 @@ function App() {
 					setEq2={setEq2}
 
 					intercepts={intercepts}
+				/>
+
+				<br />
+
+				<DomainRange 
+					minX={minX}
+					setMinX={setMinX}
+
+					maxX={maxX}
+					setMaxX={setMaxX}
+
+					minY={minY}
+					setMinY={setMinY}
+
+					maxY={maxY}
+					setMaxY={setMaxY}
 				/>
 			</div>
 		</div>

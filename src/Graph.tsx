@@ -5,7 +5,25 @@ import { greet, evaluate_string } from "./pkg/wasm_graph_calc.js";
 import * as d3 from "d3";
 import { evaluate_graph } from "./wasm-graph-calc/pkg/wasm_graph_calc.js";
 
-function Graph({graphs, intercepts}: {graphs: any[], intercepts: number[][]}) {
+function Graph({
+	graphs,
+	intercepts,
+
+	minX,
+	maxX,
+
+	minY,
+	maxY
+}: {
+	graphs: any[],
+	intercepts: number[][],
+
+	minX: number,
+	maxX: number,
+
+	minY: number,
+	maxY: number
+}) {
 
 	const width = 580;
 	const height = 500;
@@ -16,14 +34,14 @@ function Graph({graphs, intercepts}: {graphs: any[], intercepts: number[][]}) {
 	const inner_width = width - 2 * margin_width;
 	const inner_height = height - 2 * margin_height;
 
-	const units_width = 10
-	const units_height = 10
+	// const units_width = 10
+	// const units_height = 10
 
 	let lineGen = d3.line()
 		.curve(d3.curveCardinal);
 		// .curve(d3.curveLinear)
 	let xScale = d3.scaleLinear()
-		.domain([-units_width, units_width])
+		.domain([minX, units_width])
 		.range([0, inner_width])
 
 	let yScale = d3.scaleLinear()
