@@ -819,6 +819,9 @@ impl Evaluator {
         &self,
         fn1_name: char,
         fn2_name: char,
+
+        min_x: f64,
+        max_x: f64,
     ) -> Option<Vec<f64>> {
         let fn1 = match self.graphs.get(&fn1_name) {
             Some(v) => v,
@@ -837,7 +840,7 @@ impl Evaluator {
         let f = |x: f64| 
             fn1.evaluate(Some(x), &self.vars).unwrap() - fn2.evaluate(Some(x), &self.vars).unwrap();
 
-        let roots_xs = find_roots(f, -10.0, 10.0, 0.0001, 0.0001);
+        let roots_xs = find_roots(f, min_x, max_x, 0.0001, 0.0001);
 
         let average_ys: Vec<f64> = roots_xs.iter()
             .map(|r| {
@@ -855,7 +858,7 @@ impl Evaluator {
         Some(roots_points)
     }
 
-    pub fn evaluate(&mut self, input: String) -> JsValue {
+    pub fn evaluate(&mut self, input: String, min_x: f64, max_x: f64) -> JsValue {
         let equals_count: usize = input.chars()
             .filter(|x| *x == '=')
             .count();
@@ -880,8 +883,6 @@ impl Evaluator {
                     };
 
                     let mut points: Vec<[f64; 2]> = Vec::new();
-                    let mut x: f64 = -10.0;
-
 
                     // TODO : TRY USING RC REFCELL TO AVOID CLONES
                     // this is done as differentiate requires static closure
@@ -892,7 +893,8 @@ impl Evaluator {
                     let f = move |x: f64| cloned_tree.evaluate(Some(x), &cloned_vars).unwrap();
                     let f_prime = differentiate(f, differentiation_count);
 
-                    while x <= 10.0 {
+                    let mut x: f64 = min_x;
+                    while x <= max_x {
                         let y = f_prime(x);
                         points.push([x, y]);
 
@@ -952,9 +954,8 @@ impl Evaluator {
 
                     let mut points: Vec<[f64; 2]> = Vec::new();
 
-                    let mut x: f64 = -10.0;
-
-                    while x <= 10.0 {
+                    let mut x: f64 = min_x;
+                    while x <= max_x {
                         let y = match tree.evaluate(Some(x), &self.vars) {
                             Ok(v) => v,
                             Err(_) => {

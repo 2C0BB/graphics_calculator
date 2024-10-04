@@ -69,7 +69,7 @@ function App() {
 		let new_graphs: any[] = [];
 
 		data.forEach(eq => {
-			let e = evaluator.evaluate(eq);
+			let e = evaluator.evaluate(eq, minX, maxX);
 
 			if (!e) {
 				new_answers.push(undefined);
@@ -81,7 +81,7 @@ function App() {
 			}
 		});
 
-		let raw_intercept_list = evaluator.find_intercepts(eq1, eq2);
+		let raw_intercept_list = evaluator.find_intercepts(eq1, eq2, minX, maxX);
 
 		if (raw_intercept_list && raw_intercept_list.length > 0) {
 			let raw_intercept_list2 = [...raw_intercept_list];
@@ -109,14 +109,12 @@ function App() {
 		// to avoid memory leaks as wasm does not automatically free structs
 		evaluator.free();
 
-	}, [equations, eq1, eq2, wasmLoaded]);
+	}, [equations, eq1, eq2, minX, maxX, wasmLoaded]);
 
   return (
 	<>
 
 		<div className="topBar">
-			<div><button>Save</button></div>
-			<div><button>Load</button></div>
 		</div>
 
 		<div className="middleContent">
@@ -133,34 +131,50 @@ function App() {
 
 					graphs={graphs}
 					intercepts={intercepts}
+
+					minX={minX}
+					maxX={maxX}
+
+					minY={minY}
+					maxY={maxY}
 				/>
 			</div>
 			<div className="intercepts">
-				<Intercepts 
-					eq1={eq1}
-					setEq1={setEq1}
 
-					eq2={eq2}
-					setEq2={setEq2}
+			<p><b>Domain and Range</b></p>
 
-					intercepts={intercepts}
-				/>
+			<DomainRange 
+				minX={minX}
+				setMinX={setMinX}
 
-				<br />
+				maxX={maxX}
+				setMaxX={setMaxX}
 
-				<DomainRange 
-					minX={minX}
-					setMinX={setMinX}
+				minY={minY}
+				setMinY={setMinY}
 
-					maxX={maxX}
-					setMaxX={setMaxX}
+				maxY={maxY}
+				setMaxY={setMaxY}
+			/>
 
-					minY={minY}
-					setMinY={setMinY}
+			
+			<br />
+			<hr />
 
-					maxY={maxY}
-					setMaxY={setMaxY}
-				/>
+			<p><b>Intercepts</b></p>
+
+			<Intercepts 
+				eq1={eq1}
+				setEq1={setEq1}
+
+				eq2={eq2}
+				setEq2={setEq2}
+
+				intercepts={intercepts}
+			/>
+
+
+
 			</div>
 		</div>
     </>

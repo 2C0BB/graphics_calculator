@@ -34,7 +34,7 @@ function Intercepts ({
 			/>
 
 			<br></br>
-			<b>{intercepts.length}</b>
+			<b>Num of intercepts: {intercepts.length}</b>
 
 			{
 				intercepts.map((i: number[], idx: number) => {

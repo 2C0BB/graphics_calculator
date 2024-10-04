@@ -25,8 +25,8 @@ function Graph({
 	maxY: number
 }) {
 
-	const width = 580;
-	const height = 500;
+	const width = 800;
+	const height = 575;
 
 	const margin_width = 10;
 	const margin_height = 10;
@@ -41,11 +41,11 @@ function Graph({
 		.curve(d3.curveCardinal);
 		// .curve(d3.curveLinear)
 	let xScale = d3.scaleLinear()
-		.domain([minX, units_width])
+		.domain([minX, maxX])
 		.range([0, inner_width])
 
 	let yScale = d3.scaleLinear()
-		.domain([-units_height, units_height])
+		.domain([minY, maxY])
 		.range([inner_height, 0])
 
 	let points = [];
@@ -74,7 +74,6 @@ function Graph({
 		d3.select('svg')
 			.call(zoom);
 
-
 		let x_axis = d3.axisTop(xScale);
 		d3.select("#x-axis")
 			.attr("class", "axisBlack")
@@ -91,8 +90,7 @@ function Graph({
 			.attr("stroke", "black")
 			.attr("stroke-width", 1.5);	
 
-	}, []);
-
+	}, [minX, maxX, minY, maxY]);
 
 
 	// update lines when graphs change
@@ -111,8 +109,8 @@ function Graph({
 				let scaled_x = xScale(x);
 				let scaled_y = yScale(y);
 
-				let x_valid = x >= -units_width && x <= units_width;
-				let y_valid = y >= -units_height && y <= units_height;
+				let x_valid = x >= minX && x <= maxX;
+				let y_valid = y >= minY && y <= maxY;
 
 				if (x_valid && y_valid) {
 					adjusted_values.push([scaled_x, scaled_y]);
@@ -129,7 +127,7 @@ function Graph({
 					.attr("stroke-width", 1.5);	
 		});
 
-	}, [graphs]);
+	}, [graphs, minX, maxX, minY, maxY]);
 
 	// update intercept points when intercepts change
 	useEffect(() => {
@@ -150,7 +148,7 @@ function Graph({
 			.attr('r', 5)
 			.style('fill', 'orange');
 
-	}, [intercepts])
+	}, [intercepts, minX, maxX, minY, maxY])
 
 	
 
