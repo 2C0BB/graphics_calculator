@@ -8,11 +8,13 @@ extern "C" {
     fn log(s: &str);
 }
 
+// use first principles equation to approximate derivation
 pub fn differentiate<F>(f: F, amount: usize) -> Box<dyn Fn(f64) -> f64>
     where F: Fn(f64) -> f64 + 'static
 {
     let mut out: Box<dyn Fn(f64) -> f64> = Box::new(f);
 
+    // small value of h for close approximation
     let h = 0.0001;
     for _ in 0..amount {
         out = Box::new(move |x: f64| (out(x+h) - out(x)) / h);
@@ -21,6 +23,7 @@ pub fn differentiate<F>(f: F, amount: usize) -> Box<dyn Fn(f64) -> f64>
     out
 }
 
+// using squares method average out and over and under estimate to integrate area
 pub fn integrate<F>(f: F, start: f64, end: f64, squares_amt: usize) -> f64
     where F: Fn(f64) -> f64
 {
