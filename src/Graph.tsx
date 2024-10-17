@@ -13,7 +13,7 @@ function Graph({
 	maxX,
 
 	minY,
-	maxY
+	maxY,
 }: {
 	graphs: any[],
 	intercepts: number[][],
@@ -22,11 +22,21 @@ function Graph({
 	maxX: number,
 
 	minY: number,
-	maxY: number
+	maxY: number,
 }) {
 
-	const width = 800;
-	const height = 575;
+	let width = 700;
+	let height = 550;
+
+	// let gd = document.getElementById("graphDiv");
+
+	// if (gd == null) {
+	// 	width = 500;
+	// 	height = 500;
+	// } else {
+	// 	width = gd.offsetWidth;
+	// 	height = gd.offsetHeight;
+	// }
 
 	const margin_width = 10;
 	const margin_height = 10;
@@ -155,7 +165,7 @@ function Graph({
 	
 	return (
 		<>
-			<svg id="topSvg" width={width} height={height}>
+			<svg id="topSvg" viewBox={`0 0 ${width} ${height}`}>
 				<g id="svgMain">
 					<g id="x-axis" transform={`translate(${margin_width}, ${height / 2})`}></g>
 					<g id="y-axis" transform={`translate(${width / 2}, ${margin_height})`}></g>

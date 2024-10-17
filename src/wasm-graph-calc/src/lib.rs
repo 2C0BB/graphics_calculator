@@ -4,12 +4,7 @@ use serde::{Serialize, Deserialize};
 
 use regex::Regex;
 
-mod utils;
-
-mod calculus;
 use calculus::*;
-
-pub mod roots;
 use roots::*;
 
 #[wasm_bindgen]

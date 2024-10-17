@@ -114,8 +114,8 @@ function App() {
   return (
 	<>
 
-		<div className="topBar">
-		</div>
+		{/* <div className="topBar">
+		</div> */}
 
 		<div className="middleContent">
 			<div className="split left">
@@ -126,7 +126,7 @@ function App() {
 					answers={answers}
 				/>
 			</div>
-			<div className="split right">
+			<div id="graphDiv" className="split right">
 				<Graph
 
 					graphs={graphs}
@@ -141,7 +141,7 @@ function App() {
 			</div>
 			<div className="intercepts">
 
-			<p><b>Domain and Range</b></p>
+			<p><b>Graph Bounds</b></p>
 
 			<DomainRange 
 				minX={minX}

@@ -52,7 +52,7 @@ function EquationInput({
 
 				{a &&
 				<div className="result">
-					<p>{a.var_name} = {a.value.toFixed(4)}</p>
+					<span>{a.var_name} = {a.value.toFixed(4)}</span>
 				</div>
 				}
 			</div>
